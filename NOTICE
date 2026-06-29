@@ -1,0 +1,6 @@
+fost-agent-ledger
+Copyright 2026 K. Takahashi
+
+This project implements a practical toolkit inspired by Finite Operational
+Structure Theory. It does not claim to implement a truth verifier or universal
+safety guarantee.
