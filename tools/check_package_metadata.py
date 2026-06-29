@@ -7,7 +7,10 @@ import zipfile
 from dataclasses import dataclass
 from pathlib import Path
 
-import tomllib
+try:
+    import tomllib
+except ModuleNotFoundError:  # pragma: no cover - exercised on Python 3.10 CI
+    import tomli as tomllib  # type: ignore[no-redef]
 
 EXPECTED_PROJECT = "fost-agent-ledger"
 EXPECTED_VERSION = "1.0.0"
