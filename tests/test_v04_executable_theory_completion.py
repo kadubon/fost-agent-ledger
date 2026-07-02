@@ -28,7 +28,7 @@ def test_v03_ledger_migrates_to_v10_roundtrip() -> None:
         "stage_builds": [],
     }
     ledger = EvaluatedLedger.from_dict(v03)
-    assert ledger.schema_version == "1.0"
+    assert ledger.schema_version == "2.0"
     assert ledger.metadata["migrated_from_schema_version"] == "0.3"
     assert EvaluatedLedger.from_json(ledger.to_json()).to_dict() == ledger.to_dict()
 
@@ -45,7 +45,7 @@ def test_v04_ledger_migrates_to_v10_roundtrip() -> None:
         "stage_builds": [],
     }
     ledger = EvaluatedLedger.from_dict(v04)
-    assert ledger.schema_version == "1.0"
+    assert ledger.schema_version == "2.0"
     assert ledger.metadata["migrated_from_schema_version"] == "0.4"
     assert EvaluatedLedger.from_json(ledger.to_json()).to_dict() == ledger.to_dict()
 
@@ -271,6 +271,6 @@ def test_cli_coverage_and_init_are_v04(capsys: pytest.CaptureFixture[str]) -> No
 
     assert main(["init", "--mode", "draft", "--agent-id", "agent-v4"]) == 0
     initialized = json.loads(capsys.readouterr().out)
-    assert initialized["schema_version"] == "1.0"
+    assert initialized["schema_version"] == "2.0"
     ledger = EvaluatedLedger.from_dict(initialized)
     assert validate_ledger(ledger).errors == ()

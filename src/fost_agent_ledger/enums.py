@@ -140,6 +140,13 @@ class RecordType(StableStrEnum):
     VALIDATOR_TIMEOUT = "validator_timeout"
     ROOT_DEBT = "root_debt"
     KERNEL_ADMISSION = "kernel_admission"
+    ANCHOR_DECLARATION = "anchor_declaration"
+    ADEQUACY_RECORD = "adequacy_record"
+    STATUS_BODY = "status_body"
+    CHECKED_STATUS = "checked_status"
+    PRE_ADMISSIBILITY_SUPPORT_VECTOR = "pre_admissibility_support_vector"
+    ADMISSIBILITY_BODY = "admissibility_body"
+    CHECKED_ADMISSIBILITY = "checked_admissibility"
     NULL_CERTIFICATE = "null_certificate"
     CERTIFICATE_COVER = "certificate_cover"
     RESPECT_CERTIFICATE = "respect_certificate"
@@ -224,6 +231,30 @@ class UnavailablePolicy(StableStrEnum):
     TRANSFER = "transfer"
     RECHECK = "recheck"
     IGNORE = "ignore"
+
+
+class AnchorKind(StableStrEnum):
+    ROOT_DECLARATION = "root_declaration"
+    PRIOR_KERNEL_WITNESS = "prior_kernel_witness"
+    EVENT_FREE_ROOT = "event_free_root"
+    EXTERNAL_CERTIFICATE_ANCHOR = "external_certificate_anchor"
+    OBSERVED_EVIDENCE = "observed_evidence"
+    DECLARED_SUPPORT = "declared_support"
+
+
+class CoordinateKind(StableStrEnum):
+    SUPPORT = "support"
+    KERNEL = "kernel"
+    CERTIFICATE = "certificate"
+    OBLIGATION = "obligation"
+    ENVIRONMENT = "environment"
+    MODE_SCOPE = "mode_scope"
+    PROVENANCE = "provenance"
+    EVENT_ORDER = "event_order"
+    STATUS = "status"
+    ADMISSIBILITY = "admissibility"
+    VALIDATOR = "validator"
+    ADEQUACY = "adequacy"
 
 
 class EvidenceState(StableStrEnum):

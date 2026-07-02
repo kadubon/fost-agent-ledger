@@ -13,7 +13,7 @@ from .provenance import EventOrder, ProvenanceEdge
 from .stages import StageBuildRecord, validate_stage_builds
 from .support import SupportGraph
 
-SCHEMA_VERSION = "1.0"
+SCHEMA_VERSION = "2.0"
 
 
 def stage_index(stage: LedgerStage | str) -> int:
@@ -117,7 +117,7 @@ class EvaluatedLedger(JsonModel):
                         code="payload.invalid",
                         message=(
                             f"{record.record_type.value} payload does not match "
-                            f"the v1.0 typed schema: {exc}"
+                            f"the v2.0 typed schema: {exc}"
                         ),
                         severity=ProblemSeverity.ERROR,
                         related_record_ids=(record.id,),
@@ -218,9 +218,9 @@ class EvaluatedLedger(JsonModel):
 
 
 def _migrate_legacy_ledger_dict(data: dict[str, Any]) -> dict[str, Any]:
-    """Return a v1.0-shaped ledger dictionary.
+    """Return a v2.0-shaped ledger dictionary.
 
-    v0.1/v0.2/v0.3/v0.4 ledgers may lack current finite validation coordinates and
+    v0.1/v0.2/v0.3/v0.4/v1.0 ledgers may lack current finite validation coordinates and
     record types. The migration is structural only; it does not invent validation evidence.
     """
 

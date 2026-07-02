@@ -5,7 +5,10 @@ from .certificates import CertificateRegistry, scope_covers
 from .enums import (
     CERTIFICATE_USE_TO_SUPPORT_ROLE,
     Admissibility,
+    AnchorKind,
     CertificateUseKind,
+    EvidenceDisposition,
+    EvidenceState,
     JudgmentKind,
     LedgerStage,
     ProblemSeverity,
@@ -14,6 +17,7 @@ from .enums import (
     TargetState,
 )
 from .environment import EnvironmentToken, validate_environment_tokens
+from .errors import UnknownModeError
 from .formal import validate_formal_completion
 from .ids import utc_now
 from .kernels import Kernel, validate_kernel
@@ -31,8 +35,20 @@ def validate_ledger(
     *,
     certificate_registry: CertificateRegistry | None = None,
     kernel: Kernel | None = None,
+    require_finality: bool = False,
+    strict_mode: bool = True,
+    allow_unknown_mode_as_draft: bool = False,
 ) -> ValidationResult:
-    contract = ModeContract.for_name(mode or ledger.mode)
+    try:
+        contract = ModeContract.for_name(
+            mode or ledger.mode,
+            allow_unknown_as_draft=allow_unknown_mode_as_draft,
+        )
+    except UnknownModeError:
+        if strict_mode:
+            raise
+        contract = ModeContract.for_name("draft")
+    kernel = kernel or Kernel.from_ledger(ledger)
     payload_problems = ledger.validate_payloads()
     event_problems = ledger.event_order.validate()
     provenance_problems = validate_provenance(
@@ -55,11 +71,23 @@ def validate_ledger(
         required_names=contract.environment_token_selection_rules,
         high_impact=bool(contract.impact_requirements.get("required", False)),
     )
-    kernel_problems = validate_kernel(kernel) if kernel is not None else ()
+    kernel_problems = (
+        validate_kernel(kernel)
+        if kernel is not None
+        else _validate_required_kernel_context(ledger, contract, require_finality=require_finality)
+    )
     obligation_records = _obligations_from_records(ledger)
     obligation_problems = validate_obligations(obligation_records)
     adequacy = validate_adequacy(ledger, contract)
     formal_problems = validate_formal_completion(ledger, contract)
+    strict_problems = (
+        _validate_checked_finality(ledger, contract)
+        + _validate_typed_anchors(ledger, require_declarations=require_finality)
+        + _validate_persisted_adequacy(ledger, contract, require_finality=require_finality)
+        + _validate_strict_stage_builds(ledger)
+        if require_finality
+        else ()
+    )
 
     all_problems = (
         payload_problems
@@ -75,6 +103,7 @@ def validate_ledger(
         + obligation_problems
         + adequacy.problems
         + formal_problems
+        + strict_problems
     )
     errors = tuple(
         problem
@@ -240,6 +269,479 @@ def _validate_final_record_separation(ledger: EvaluatedLedger) -> tuple[Problem,
                 )
             )
     return tuple(problems)
+
+
+def _validate_checked_finality(
+    ledger: EvaluatedLedger,
+    contract: ModeContract,
+) -> tuple[Problem, ...]:
+    records = {record.id: record for record in ledger.records}
+    problems: list[Problem] = []
+    required = {
+        RecordType.STATUS_BODY: "finality.missing_status_body",
+        RecordType.CHECKED_STATUS: "finality.missing_checked_status",
+        RecordType.PRE_ADMISSIBILITY_SUPPORT_VECTOR: "finality.missing_pre_vector",
+        RecordType.ADMISSIBILITY_BODY: "finality.missing_admissibility_body",
+        RecordType.CHECKED_ADMISSIBILITY: "finality.missing_checked_admissibility",
+    }
+    for record_type, code in required.items():
+        if not ledger.find(record_type):
+            problems.append(
+                Problem(
+                    code=code,
+                    message=f"strict finality requires a {record_type.value} record",
+                    severity=ProblemSeverity.ERROR,
+                    suggested_repair=(
+                        "Use LedgerBuilder.finalize_checked() or add the typed record."
+                    ),
+                )
+            )
+
+    checked_status_ids = {record.id for record in ledger.find(RecordType.CHECKED_STATUS)}
+    checked_admissibility_ids = {
+        record.id for record in ledger.find(RecordType.CHECKED_ADMISSIBILITY)
+    }
+    final_output_ids = (
+        checked_status_ids
+        | checked_admissibility_ids
+        | {record.id for record in ledger.find(RecordType.STATUS)}
+        | {record.id for record in ledger.find(RecordType.ADMISSIBILITY)}
+    )
+
+    for record in ledger.find(RecordType.STATUS_BODY) + ledger.find(RecordType.ADMISSIBILITY_BODY):
+        _require_versions(record, problems, code_prefix="finality")
+        if record.payload.get("reads_final_output", False):
+            problems.append(_output_leakage_problem(record))
+        for ref in record.support_refs:
+            _check_support_ref(ledger, record, ref, problems)
+        for ref_field in ("status_body_record_id", "pre_admissibility_vector_id"):
+            ref_value = record.payload.get(ref_field)
+            if isinstance(ref_value, str) and ref_value in final_output_ids:
+                problems.append(_output_leakage_problem(record, ref_value))
+
+    for record in ledger.find(RecordType.CHECKED_STATUS):
+        _require_versions(record, problems, code_prefix="status")
+        if not record.payload.get("checked", True):
+            problems.append(
+                Problem(
+                    code="status.unchecked_final",
+                    message="strict finality requires checked_status.checked=true",
+                    severity=ProblemSeverity.ERROR,
+                    related_record_ids=(record.id,),
+                )
+            )
+        if record.payload.get("reads_final_output", False):
+            problems.append(_output_leakage_problem(record))
+        body_id = str(record.payload.get("body_record_id", ""))
+        body = records.get(body_id)
+        if body is None or body.record_type != RecordType.STATUS_BODY:
+            problems.append(
+                Problem(
+                    code="status.missing_body",
+                    message="checked status must point at a status_body record",
+                    severity=ProblemSeverity.ERROR,
+                    related_record_ids=(record.id, body_id),
+                )
+            )
+        _require_coordinates(record, contract.required_read_coordinates, "read", problems)
+        _require_coordinates(record, contract.required_respect_coordinates, "respect", problems)
+        _check_no_self_support(record, problems, "status.self_reference")
+        for ref in record.support_refs:
+            _check_support_ref(ledger, record, ref, problems)
+
+    for vector in ledger.find(RecordType.PRE_ADMISSIBILITY_SUPPORT_VECTOR):
+        _require_versions(vector, problems, code_prefix="admissibility")
+        if not any(
+            vector.payload.get(key)
+            for key in (
+                "support_coordinates",
+                "validator_coordinates",
+                "kernel_coordinates",
+                "certificate_coordinates",
+                "environment_coordinates",
+                "obligation_coordinates",
+                "adequacy_coordinates",
+            )
+        ):
+            problems.append(
+                Problem(
+                    code="admissibility.empty_pre_vector",
+                    message="pre-admissibility support vector has no finite coordinates",
+                    severity=ProblemSeverity.ERROR,
+                    related_record_ids=(vector.id,),
+                )
+            )
+        if contract.required_respect_coordinates and not vector.payload.get(
+            "validator_coordinates"
+        ):
+            problems.append(
+                Problem(
+                    code="admissibility.pre_vector_missing_coordinate",
+                    message="pre-admissibility vector lacks validator coordinates",
+                    severity=ProblemSeverity.ERROR,
+                    related_record_ids=(vector.id,),
+                )
+            )
+        if contract.environment_token_selection_rules and not vector.payload.get(
+            "environment_coordinates"
+        ):
+            problems.append(
+                Problem(
+                    code="admissibility.pre_vector_missing_coordinate",
+                    message="pre-admissibility vector lacks environment coordinates",
+                    severity=ProblemSeverity.ERROR,
+                    related_record_ids=(vector.id,),
+                )
+            )
+
+    for record in ledger.find(RecordType.CHECKED_ADMISSIBILITY):
+        _require_versions(record, problems, code_prefix="admissibility")
+        if not record.payload.get("checked", True):
+            problems.append(
+                Problem(
+                    code="admissibility.unchecked_final",
+                    message="strict finality requires checked_admissibility.checked=true",
+                    severity=ProblemSeverity.ERROR,
+                    related_record_ids=(record.id,),
+                )
+            )
+        if record.payload.get("reads_final_output", False):
+            problems.append(_output_leakage_problem(record))
+        body_id = str(record.payload.get("body_record_id", ""))
+        body = records.get(body_id)
+        if body is None or body.record_type != RecordType.ADMISSIBILITY_BODY:
+            problems.append(
+                Problem(
+                    code="admissibility.missing_body",
+                    message="checked admissibility must point at an admissibility_body record",
+                    severity=ProblemSeverity.ERROR,
+                    related_record_ids=(record.id, body_id),
+                )
+            )
+        vector_id = str(record.payload.get("pre_admissibility_vector_id", ""))
+        vector_record = records.get(vector_id)
+        if (
+            vector_record is None
+            or vector_record.record_type != RecordType.PRE_ADMISSIBILITY_SUPPORT_VECTOR
+        ):
+            problems.append(
+                Problem(
+                    code="admissibility.missing_pre_vector",
+                    message="checked admissibility must point at a pre-admissibility vector",
+                    severity=ProblemSeverity.ERROR,
+                    related_record_ids=(record.id, vector_id),
+                )
+            )
+        _require_coordinates(record, contract.required_read_coordinates, "read", problems)
+        _require_coordinates(record, contract.required_respect_coordinates, "respect", problems)
+        _check_no_self_support(record, problems, "admissibility.self_reference")
+        for ref in record.support_refs:
+            if ref in final_output_ids and ref != record.id:
+                problems.append(_output_leakage_problem(record, ref))
+            _check_support_ref(ledger, record, ref, problems)
+    return tuple(problems)
+
+
+def _validate_typed_anchors(
+    ledger: EvaluatedLedger,
+    *,
+    require_declarations: bool,
+) -> tuple[Problem, ...]:
+    if not require_declarations:
+        return ()
+    records = {record.id: record for record in ledger.records}
+    declarations = {
+        str(record.payload.get("anchor_id", "")): record
+        for record in ledger.find(RecordType.ANCHOR_DECLARATION)
+    }
+    problems: list[Problem] = []
+    for anchor_id in ledger.support_graph.anchors:
+        declaration = declarations.get(anchor_id)
+        if declaration is None:
+            problems.append(
+                Problem(
+                    code="anchor.undeclared",
+                    message="strict support anchor has no typed anchor declaration",
+                    severity=ProblemSeverity.ERROR,
+                    related_record_ids=(anchor_id,),
+                    suggested_repair="Add an anchor_declaration record for the support anchor.",
+                )
+            )
+            continue
+        target_id = str(declaration.payload.get("target_id", anchor_id))
+        if target_id not in records and target_id != anchor_id:
+            problems.append(
+                Problem(
+                    code="anchor.missing_target",
+                    message="anchor declaration points at no finite target",
+                    severity=ProblemSeverity.ERROR,
+                    related_record_ids=(declaration.id, target_id),
+                )
+            )
+        kind = declaration.payload.get("anchor_kind")
+        if kind == AnchorKind.OBSERVED_EVIDENCE.value and not (
+            declaration.payload.get("provenance_ref") or declaration.payload.get("reason")
+        ):
+            problems.append(
+                Problem(
+                    code="anchor.missing_provenance",
+                    message="observed-evidence anchor needs provenance or a finite reason",
+                    severity=ProblemSeverity.ERROR,
+                    related_record_ids=(declaration.id, anchor_id),
+                )
+            )
+        if kind == AnchorKind.EVENT_FREE_ROOT.value and not declaration.payload.get(
+            "event_free", False
+        ):
+            problems.append(
+                Problem(
+                    code="anchor.event_free_mismatch",
+                    message="event-free-root anchor must declare event_free=true",
+                    severity=ProblemSeverity.ERROR,
+                    related_record_ids=(declaration.id, anchor_id),
+                )
+            )
+        permitted = _payload_string_set(declaration, "permitted_roles")
+        roles = ledger.support_graph.anchor_roles.get(anchor_id, ())
+        if permitted and any(role.value not in permitted for role in roles):
+            problems.append(
+                Problem(
+                    code="anchor.role_mismatch",
+                    message="anchor declaration does not permit all graph anchor roles",
+                    severity=ProblemSeverity.ERROR,
+                    related_record_ids=(declaration.id, anchor_id),
+                )
+            )
+    return tuple(problems)
+
+
+def _validate_persisted_adequacy(
+    ledger: EvaluatedLedger,
+    contract: ModeContract,
+    *,
+    require_finality: bool,
+) -> tuple[Problem, ...]:
+    if not require_finality:
+        return ()
+    records_by_component: dict[str, list[LedgerRecord]] = {}
+    for record in ledger.find(RecordType.ADEQUACY_RECORD):
+        records_by_component.setdefault(str(record.payload.get("component", "")), []).append(record)
+    problems: list[Problem] = []
+    for component in contract.adequacy_rules:
+        candidates = records_by_component.get(component, [])
+        if not candidates:
+            problems.append(
+                Problem(
+                    code="adequacy.missing_record",
+                    message=f"strict finality requires persisted adequacy record for {component}",
+                    severity=ProblemSeverity.ERROR,
+                    related_record_ids=(component,),
+                )
+            )
+            continue
+        if not any(_adequacy_record_accepts(record) for record in candidates):
+            problems.append(
+                Problem(
+                    code="adequacy.record_not_accepted",
+                    message=f"persisted adequacy record for {component} is not accepted",
+                    severity=ProblemSeverity.ERROR,
+                    related_record_ids=tuple(record.id for record in candidates),
+                )
+            )
+        for record in candidates:
+            _require_versions(record, problems, code_prefix="adequacy")
+            if record.payload.get("waived", False) and not (
+                record.payload.get("support_refs") or record.payload.get("reason")
+            ):
+                problems.append(
+                    Problem(
+                        code="adequacy.waiver_missing_support",
+                        message="adequacy waiver has no finite support or reason",
+                        severity=ProblemSeverity.ERROR,
+                        related_record_ids=(record.id,),
+                    )
+                )
+    return tuple(problems)
+
+
+def _validate_required_kernel_context(
+    ledger: EvaluatedLedger,
+    contract: ModeContract,
+    *,
+    require_finality: bool,
+) -> tuple[Problem, ...]:
+    if not (
+        require_finality
+        or contract.name in {"agent_action", "self_modification"}
+        or ledger.find(RecordType.SELF_MODIFICATION_WITNESS)
+    ):
+        return ()
+    return (
+        Problem(
+            code="kernel.missing_context",
+            message="mode requires finite validation/object kernel context",
+            severity=ProblemSeverity.ERROR,
+            suggested_repair=(
+                "Add kernel_admission/root_debt records or pass a Kernel to validate_ledger()."
+            ),
+        ),
+    )
+
+
+def _validate_strict_stage_builds(ledger: EvaluatedLedger) -> tuple[Problem, ...]:
+    finality_ids = {
+        record.id
+        for record in ledger.records
+        if record.record_type
+        in {
+            RecordType.STATUS_BODY,
+            RecordType.CHECKED_STATUS,
+            RecordType.PRE_ADMISSIBILITY_SUPPORT_VECTOR,
+            RecordType.ADMISSIBILITY_BODY,
+            RecordType.CHECKED_ADMISSIBILITY,
+        }
+    }
+    emitted = {record_id for build in ledger.stage_builds for record_id in build.emitted_records}
+    problems: list[Problem] = []
+    missing = sorted(finality_ids - emitted)
+    for record_id in missing:
+        problems.append(
+            Problem(
+                code="stage.missing_build_record",
+                message="strict finality record is not emitted by a stage build",
+                severity=ProblemSeverity.ERROR,
+                related_record_ids=(record_id,),
+            )
+        )
+    for build in ledger.stage_builds:
+        if finality_ids & set(build.emitted_records) and (
+            not build.rule_versions or not build.checker_versions
+        ):
+            problems.append(
+                Problem(
+                    code="stage.missing_checker_or_rule_version",
+                    message="finality stage build needs checker and rule versions",
+                    severity=ProblemSeverity.ERROR,
+                    related_record_ids=(build.build_id,),
+                )
+            )
+    for record in ledger.records:
+        if record.id in finality_ids and record.stage not in ledger.frozen_stages:
+            problems.append(
+                Problem(
+                    code="stage.unfrozen_finality",
+                    message="strict finality record stage is not frozen",
+                    severity=ProblemSeverity.ERROR,
+                    related_record_ids=(record.id,),
+                )
+            )
+    return tuple(problems)
+
+
+def _require_versions(
+    record: LedgerRecord,
+    problems: list[Problem],
+    *,
+    code_prefix: str,
+) -> None:
+    if not record.payload.get("checker_version_id") or not record.payload.get("rule_version_id"):
+        problems.append(
+            Problem(
+                code=f"{code_prefix}.missing_checker_or_rule_version",
+                message="record lacks finite checker_version_id or rule_version_id",
+                severity=ProblemSeverity.ERROR,
+                related_record_ids=(record.id,),
+            )
+        )
+
+
+def _require_coordinates(
+    record: LedgerRecord,
+    required: tuple[str, ...],
+    kind: str,
+    problems: list[Problem],
+) -> None:
+    present = _payload_string_set(record, f"{kind}_coordinates")
+    missing = tuple(item for item in required if item not in present)
+    if missing:
+        problems.append(
+            Problem(
+                code=f"finality.missing_{kind}_coordinate",
+                message=f"record lacks required {kind} coordinates: {', '.join(missing)}",
+                severity=ProblemSeverity.ERROR,
+                related_record_ids=(record.id, *missing),
+            )
+        )
+
+
+def _check_no_self_support(record: LedgerRecord, problems: list[Problem], code: str) -> None:
+    if (
+        record.payload.get("body_record_id") == record.id
+        or record.payload.get("pre_admissibility_vector_id") == record.id
+        or record.id in record.support_refs
+    ):
+        problems.append(
+            Problem(
+                code=code,
+                message="final checked record cannot read or support itself",
+                severity=ProblemSeverity.ERROR,
+                related_record_ids=(record.id,),
+            )
+        )
+
+
+def _check_support_ref(
+    ledger: EvaluatedLedger,
+    record: LedgerRecord,
+    ref: str,
+    problems: list[Problem],
+) -> None:
+    if ref in ledger.support_graph.unavailable:
+        problems.append(
+            Problem(
+                code="support.unavailable_evidence",
+                message="unavailable leaf cannot serve as finality evidence",
+                severity=ProblemSeverity.ERROR,
+                related_record_ids=(record.id, ref),
+            )
+        )
+        return
+    if not any(item.id == ref for item in ledger.records):
+        problems.append(
+            Problem(
+                code="support.missing_node",
+                message="finality support_ref points at no finite record",
+                severity=ProblemSeverity.ERROR,
+                related_record_ids=(record.id, ref),
+            )
+        )
+
+
+def _output_leakage_problem(record: LedgerRecord, ref: str | None = None) -> Problem:
+    related = (record.id,) if ref is None else (record.id, ref)
+    return Problem(
+        code="finality.output_leakage",
+        message="final checked output is read as an input to finality",
+        severity=ProblemSeverity.ERROR,
+        related_record_ids=related,
+    )
+
+
+def _adequacy_record_accepts(record: LedgerRecord) -> bool:
+    state = record.payload.get("state")
+    disposition = record.payload.get("disposition")
+    if state == EvidenceState.PASS.value and disposition == EvidenceDisposition.ACCEPTED.value:
+        return True
+    return bool(record.payload.get("waived", False)) and disposition == (
+        EvidenceDisposition.WAIVER_ACCEPTED.value
+    )
+
+
+def _payload_string_set(record: LedgerRecord, key: str) -> set[str]:
+    raw = record.payload.get(key, ())
+    if isinstance(raw, list):
+        return {str(item) for item in raw}
+    return set()
 
 
 def _certificate_problems_from_records(ledger: EvaluatedLedger) -> tuple[Problem, ...]:

@@ -8,15 +8,17 @@ Design rules:
 
 - stable lowercase enum values;
 - explicit JSON serialization;
-- canonical v1.0 ledgers carry `schema_version`, event order, provenance edges, stage-build records, support graph coordinates, theory coverage metadata, and typed payloads;
+- canonical v2.0 ledgers carry `schema_version`, event order, provenance edges, stage-build records, support graph coordinates, theory coverage metadata, and typed payloads;
 - no hidden global state;
 - validator functions return machine-readable `Problem` objects;
 - policies are separate from the domain model;
 - certificates are target-indexed and must be checked through target state, finite certificate-state nodes, scope, freshness, and role-compatible support;
+- certificate scope is fail-closed: missing keys do not cover constrained targets, and wildcard coverage must be explicit;
+- support anchors used by strict finality require typed `anchor_declaration` records;
 - validation kernel and object kernel are distinct, and kernel admissions require root debt, prior-kernel witness, or external certificate anchors;
-- status and admissibility are separate outputs, with separate body/checked objects and no final self-reference;
+- status and admissibility are separate outputs, with separate body/checked objects, a pre-admissibility support vector, persisted adequacy dispositions, and no final self-reference;
 - transition validation compares support, kernel, certificate, obligation, environment, provenance, event-order, and mode/scope coordinates.
-- v1.0 includes executable-theory records for process classes, distinction bases, finite presentations, presentation maps, finite expressions, requirement policies, settledness licenses, certificate cover, obligation discharge, compression factorization, record-preserving refinement, self-modification witnesses, and theory item coverage.
+- v2.0 includes executable-theory records for process classes, distinction bases, finite presentations, presentation maps, finite expressions, requirement policies, settledness licenses, certificate cover, obligation discharge, compression factorization, record-preserving refinement, self-modification witnesses, and theory item coverage.
 - complete implementation means every tracked manuscript item has finite runtime coverage or an explicit design-boundary anchor; it does not mean adding hidden truth, safety, objectivity, or completed-infinity primitives.
 
 ## Appendix-Driven Implementation Principles

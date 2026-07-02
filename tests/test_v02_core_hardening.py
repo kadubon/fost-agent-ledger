@@ -55,7 +55,7 @@ def test_v01_ledger_migrates_to_v10_and_roundtrips() -> None:
         "support_graph": {},
     }
     ledger = EvaluatedLedger.from_dict(legacy)
-    assert ledger.schema_version == "1.0"
+    assert ledger.schema_version == "2.0"
     assert ledger.metadata["migrated_from_schema_version"] == "0.1"
 
     roundtripped = EvaluatedLedger.from_dict(ledger.to_dict())
@@ -65,7 +65,7 @@ def test_v01_ledger_migrates_to_v10_and_roundtrips() -> None:
 def test_json_schema_has_typed_payload_and_cut_defs() -> None:
     schema = export_json_schema()
     defs = schema["$defs"]
-    assert defs["EvaluatedLedger"]["properties"]["schema_version"]["const"] == "1.0"
+    assert defs["EvaluatedLedger"]["properties"]["schema_version"]["const"] == "2.0"
     assert "OperationalCut" in defs
     assert "LedgerTransition" in defs
     assert "CertificateRegistry" in defs
@@ -74,7 +74,7 @@ def test_json_schema_has_typed_payload_and_cut_defs() -> None:
     assert defs["UnavailableLeafPayload"]["properties"]["evidence"]["const"] is False
 
     cut = OperationalCut.create(agent_id="agent", mode="draft")
-    assert cut.ledger["schema_version"] == "1.0"
+    assert cut.ledger["schema_version"] == "2.0"
     assert cut.event_order["current_event"] == "event-0"
 
 

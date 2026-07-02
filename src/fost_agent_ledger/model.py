@@ -22,7 +22,7 @@ T = TypeVar("T", bound=Enum)
 
 JsonValue = None | bool | int | float | str | list["JsonValue"] | dict[str, "JsonValue"]
 JsonDict = dict[str, JsonValue]
-CANONICAL_SCHEMA_VERSION = "1.0"
+CANONICAL_SCHEMA_VERSION = "2.0"
 
 
 def enum_value(enum_cls: type[T], value: T | str) -> T:
@@ -301,7 +301,7 @@ class OperationalCut(JsonModel):
         }
         support_graph: JsonDict = {}
         return cls(
-            schema_version="1.0",
+            schema_version=CANONICAL_SCHEMA_VERSION,
             cut_id=new_id("cut"),
             created_at=utc_now(),
             agent_id=agent_id,
@@ -310,7 +310,7 @@ class OperationalCut(JsonModel):
             output_ref=output_ref,
             event_order=event_order,
             ledger={
-                "schema_version": "1.0",
+                "schema_version": CANONICAL_SCHEMA_VERSION,
                 "agent_id": agent_id,
                 "mode": mode,
                 "records": [],
@@ -328,7 +328,7 @@ class OperationalCut(JsonModel):
     def from_ledger(cls, ledger: Any, *, expression: str | None = None) -> OperationalCut:
         ledger_dict = ledger.to_dict()
         return cls(
-            schema_version=str(ledger_dict.get("schema_version", "1.0")),
+            schema_version=str(ledger_dict.get("schema_version", CANONICAL_SCHEMA_VERSION)),
             cut_id=str(ledger_dict.get("metadata", {}).get("cut_id", new_id("cut"))),
             created_at=utc_now(),
             agent_id=str(ledger_dict["agent_id"]),

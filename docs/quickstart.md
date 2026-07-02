@@ -19,24 +19,29 @@ print(result.summary)
 ```
 
 Use this path when your agent is written in Python.
+For a checked release artifact, call `builder.finalize_checked()` and then
+`validate_ledger(ledger, require_finality=True)`. That path requires explicit finite records for
+the final status/admissibility decision instead of treating validator output as an input.
 
 ## CLI
 
 ```bash
 fost-ledger init --mode research_summary --agent-id agent-1 > ledger.json
 fost-ledger validate ledger.json
+fost-ledger validate ledger.json --require-finality
 fost-ledger explain adequacy.vacuous
 ```
 
 Use this path for shell scripts, CI checks, or manual review.
+Unknown modes fail closed unless `--allow-unknown-mode-as-draft` is supplied.
 
 ## JSON Only
 
-A minimal v1.0 ledger has a finite root:
+A minimal v2.0 ledger has a finite root:
 
 ```json
 {
-  "schema_version": "1.0",
+  "schema_version": "2.0",
   "agent_id": "agent-1",
   "mode": "draft",
   "records": [],

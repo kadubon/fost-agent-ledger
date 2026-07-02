@@ -7,6 +7,7 @@ from pathlib import Path
 
 from .admissibility import validate_ledger
 from .builder import LedgerBuilder
+from .errors import UnknownModeError
 from .ledger import EvaluatedLedger
 from .problem_codes import explain_problem
 from .serialization.schema import export_json_schema
@@ -21,6 +22,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     validate_parser = subparsers.add_parser("validate", help="validate a ledger JSON file")
     validate_parser.add_argument("ledger")
     validate_parser.add_argument("--mode")
+    validate_parser.add_argument("--require-finality", action="store_true")
+    validate_parser.add_argument("--allow-unknown-mode-as-draft", action="store_true")
+    validate_parser.add_argument("--fail-on-warning", action="store_true")
 
     summarize_parser = subparsers.add_parser("summarize", help="summarize a ledger JSON file")
     summarize_parser.add_argument("ledger")
@@ -32,7 +36,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     diff_parser.add_argument("after")
     diff_parser.add_argument("--mode")
 
-    init_parser = subparsers.add_parser("init", help="print a minimal v1.0 ledger template")
+    init_parser = subparsers.add_parser("init", help="print a minimal v2.0 ledger template")
     init_parser.add_argument("--mode", default="draft")
     init_parser.add_argument("--agent-id", default="agent-1")
 
@@ -46,9 +50,32 @@ def main(argv: Sequence[str] | None = None) -> int:
     args = parser.parse_args(argv)
     if args.command == "validate":
         ledger = _read_ledger(args.ledger)
-        result = validate_ledger(ledger, mode=args.mode)
+        try:
+            result = validate_ledger(
+                ledger,
+                mode=args.mode,
+                require_finality=args.require_finality,
+                allow_unknown_mode_as_draft=args.allow_unknown_mode_as_draft,
+            )
+        except UnknownModeError as exc:
+            print(
+                json.dumps(
+                    {
+                        "code": "mode.unknown",
+                        "error": str(exc),
+                        "repair": "Use a built-in mode or pass --allow-unknown-mode-as-draft.",
+                    },
+                    indent=2,
+                    sort_keys=True,
+                )
+            )
+            return 2
         print(result.to_json())
-        return 0 if not result.errors else 1
+        if result.errors:
+            return 1
+        if args.fail_on_warning and result.warnings:
+            return 1
+        return 0
     if args.command == "summarize":
         ledger = _read_ledger(args.ledger)
         result = validate_ledger(ledger)

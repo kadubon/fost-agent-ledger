@@ -116,6 +116,48 @@ class Kernel(JsonModel):
             metadata=dict(data.get("metadata", {})),
         )
 
+    @classmethod
+    def from_ledger(cls, ledger: Any) -> Kernel | None:
+        from .enums import AnchorKind, RecordType
+
+        admissions = tuple(
+            KernelAdmission.from_dict(record.payload)
+            for record in ledger.find(RecordType.KERNEL_ADMISSION)
+        )
+        root_debts = tuple(
+            RootDebtRecord(
+                debt_id=str(record.id),
+                root_declaration_id=str(record.payload.get("root_declaration_id", "")),
+                text=str(record.payload.get("text", "")),
+                visible=bool(record.payload.get("visible", True)),
+            )
+            for record in ledger.find(RecordType.ROOT_DEBT)
+        )
+        root_declarations = tuple(
+            RootDeclaration(
+                declaration_id=str(record.payload.get("anchor_id", record.id)),
+                text=str(record.payload.get("reason", "")),
+                emits_root_debt=record.payload.get("root_debt_id") is not None,
+                reason=str(record.payload.get("reason", "")),
+            )
+            for record in ledger.find(RecordType.ANCHOR_DECLARATION)
+            if record.payload.get("anchor_kind") == AnchorKind.ROOT_DECLARATION.value
+        )
+        metadata = (
+            dict(ledger.metadata.get("kernel", {})) if isinstance(ledger.metadata, dict) else {}
+        )
+        if not admissions and not root_debts and not root_declarations and not metadata:
+            return None
+        return cls(
+            kernel_id=str(metadata.get("kernel_id", "ledger-kernel")),
+            validation_kernel_id=str(metadata.get("validation_kernel_id", "validation-kernel")),
+            object_kernel_id=str(metadata.get("object_kernel_id", "object-kernel")),
+            root_declarations=root_declarations,
+            admissions=admissions,
+            root_debts=root_debts,
+            metadata=metadata,
+        )
+
 
 def validate_kernel(kernel: Kernel) -> tuple[Problem, ...]:
     problems: list[Problem] = []

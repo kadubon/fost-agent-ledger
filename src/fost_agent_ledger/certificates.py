@@ -442,15 +442,20 @@ def scope_covers(certificate_scope: JsonDict, target_scope: JsonDict) -> bool:
     """Return whether finite certificate scope covers finite target scope."""
 
     for key, target_value in target_scope.items():
-        cert_value = certificate_scope.get(key)
-        if cert_value is None:
+        if key not in certificate_scope:
+            return False
+        cert_value = certificate_scope[key]
+        if cert_value == "*":
             continue
         if isinstance(cert_value, list):
-            if target_value not in cert_value:
+            if isinstance(target_value, list):
+                if not all(item in cert_value for item in target_value):
+                    return False
+            elif target_value not in cert_value:
                 return False
-        elif isinstance(cert_value, dict) and isinstance(target_value, dict):
-            if not scope_covers(cert_value, target_value):
+        elif isinstance(target_value, dict):
+            if not isinstance(cert_value, dict) or not scope_covers(cert_value, target_value):
                 return False
-        elif cert_value != "*" and cert_value != target_value:
+        elif cert_value != target_value:
             return False
     return True

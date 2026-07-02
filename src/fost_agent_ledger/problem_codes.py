@@ -45,6 +45,99 @@ PROBLEM_EXPLANATIONS: dict[str, ProblemExplanation] = {
         ("A status record has checked=false and is used by admissibility.",),
         "Create a checked status body and keep admissibility inputs separate.",
     ),
+    "admissibility.empty_pre_vector": ProblemExplanation(
+        "admissibility.empty_pre_vector",
+        "Checked admissibility has no finite pre-admissibility coordinates.",
+        ("The pre_admissibility_support_vector is empty.",),
+        (
+            "Record support, validator, kernel, certificate, environment, "
+            "obligation, or adequacy coordinates."
+        ),
+    ),
+    "admissibility.missing_body": ProblemExplanation(
+        "admissibility.missing_body",
+        "Checked admissibility does not point at an admissibility body.",
+        ("body_record_id is missing or points at another record type.",),
+        "Add an admissibility_body record and point checked_admissibility at it.",
+    ),
+    "admissibility.missing_checker_or_rule_version": ProblemExplanation(
+        "admissibility.missing_checker_or_rule_version",
+        "Admissibility finality lacks checker or rule version.",
+        ("checker_version_id or rule_version_id is empty.",),
+        "Record finite checker and rule version identifiers.",
+    ),
+    "admissibility.missing_pre_vector": ProblemExplanation(
+        "admissibility.missing_pre_vector",
+        "Checked admissibility lacks a pre-admissibility support vector.",
+        ("pre_admissibility_vector_id is missing or points at another type.",),
+        "Add a pre_admissibility_support_vector record.",
+    ),
+    "admissibility.pre_vector_missing_coordinate": ProblemExplanation(
+        "admissibility.pre_vector_missing_coordinate",
+        "The pre-admissibility vector omits a required coordinate class.",
+        ("A mode requires validator or environment coordinates not listed in the vector.",),
+        "Add the missing finite coordinate to the pre-admissibility vector.",
+    ),
+    "admissibility.unchecked_final": ProblemExplanation(
+        "admissibility.unchecked_final",
+        "Strict finality found checked_admissibility.checked=false.",
+        ("The final admissibility record is marked unchecked.",),
+        "Run a checker and set checked=true only when the body/vector were checked.",
+    ),
+    "adequacy.missing_checker_or_rule_version": ProblemExplanation(
+        "adequacy.missing_checker_or_rule_version",
+        "A persisted adequacy record lacks checker or rule version.",
+        ("checker_version_id or rule_version_id is empty.",),
+        "Record finite checker and rule version identifiers.",
+    ),
+    "adequacy.missing_record": ProblemExplanation(
+        "adequacy.missing_record",
+        "Strict finality requires persisted adequacy evidence for a mode component.",
+        ("The mode contract names an adequacy rule without an adequacy_record.",),
+        "Add an adequacy_record for the component or use LedgerBuilder.finalize_checked().",
+    ),
+    "adequacy.record_not_accepted": ProblemExplanation(
+        "adequacy.record_not_accepted",
+        "A persisted adequacy record is not accepted for strict finality.",
+        ("state/disposition is failed, blocked, conflict, or otherwise not accepted.",),
+        "Repair the component or record a supported waiver.",
+    ),
+    "adequacy.waiver_missing_support": ProblemExplanation(
+        "adequacy.waiver_missing_support",
+        "An adequacy waiver lacks finite support or reason.",
+        ("waived=true but support_refs and reason are empty.",),
+        "Add support_refs or a visible reason for the waiver.",
+    ),
+    "anchor.event_free_mismatch": ProblemExplanation(
+        "anchor.event_free_mismatch",
+        "An event-free root anchor is not declared event-free.",
+        ("anchor_kind=event_free_root but event_free=false.",),
+        "Set event_free=true or choose a different anchor kind.",
+    ),
+    "anchor.missing_provenance": ProblemExplanation(
+        "anchor.missing_provenance",
+        "An observed-evidence anchor lacks provenance or reason.",
+        ("anchor_kind=observed_evidence without provenance_ref or reason.",),
+        "Add provenance_ref or a finite reason.",
+    ),
+    "anchor.missing_target": ProblemExplanation(
+        "anchor.missing_target",
+        "An anchor declaration points at no finite target record.",
+        ("target_id is absent from the ledger.",),
+        "Correct target_id or add the target record.",
+    ),
+    "anchor.role_mismatch": ProblemExplanation(
+        "anchor.role_mismatch",
+        "An anchor is used under a role its declaration does not permit.",
+        ("support_graph.anchor_roles is outside permitted_roles.",),
+        "Expand permitted_roles or use a role-compatible anchor.",
+    ),
+    "anchor.undeclared": ProblemExplanation(
+        "anchor.undeclared",
+        "Strict support anchor has no typed anchor declaration.",
+        ("support_graph.anchors contains an id with no anchor_declaration record.",),
+        "Add anchor_declaration for every strict support anchor.",
+    ),
     "certificate.kernel_circular_support": ProblemExplanation(
         "certificate.kernel_circular_support",
         "Certificate and kernel support depend on each other circularly.",
@@ -134,6 +227,54 @@ PROBLEM_EXPLANATIONS: dict[str, ProblemExplanation] = {
         ("reads_final_output is set on status/admissibility.",),
         "Only read pre-final bodies, support vectors, and finite witnesses.",
     ),
+    "finality.missing_admissibility_body": ProblemExplanation(
+        "finality.missing_admissibility_body",
+        "Strict finality lacks an admissibility_body record.",
+        ("require_finality=True was used without the typed body.",),
+        "Add admissibility_body or call LedgerBuilder.finalize_checked().",
+    ),
+    "finality.missing_checked_admissibility": ProblemExplanation(
+        "finality.missing_checked_admissibility",
+        "Strict finality lacks a checked_admissibility record.",
+        ("No final checked admissibility record is present.",),
+        "Add checked_admissibility or call LedgerBuilder.finalize_checked().",
+    ),
+    "finality.missing_checked_status": ProblemExplanation(
+        "finality.missing_checked_status",
+        "Strict finality lacks a checked_status record.",
+        ("No final checked status record is present.",),
+        "Add checked_status or call LedgerBuilder.finalize_checked().",
+    ),
+    "finality.missing_pre_vector": ProblemExplanation(
+        "finality.missing_pre_vector",
+        "Strict finality lacks a pre-admissibility support vector.",
+        ("No pre_admissibility_support_vector record is present.",),
+        "Add the vector before checked_admissibility.",
+    ),
+    "finality.missing_read_coordinate": ProblemExplanation(
+        "finality.missing_read_coordinate",
+        "A checked record omits a required read coordinate.",
+        ("Mode contract required_read_coordinates are not listed.",),
+        "Add the missing read_coordinates.",
+    ),
+    "finality.missing_respect_coordinate": ProblemExplanation(
+        "finality.missing_respect_coordinate",
+        "A checked record omits a required respect coordinate.",
+        ("Mode contract required_respect_coordinates are not listed.",),
+        "Add the missing respect_coordinates.",
+    ),
+    "finality.missing_status_body": ProblemExplanation(
+        "finality.missing_status_body",
+        "Strict finality lacks a status_body record.",
+        ("No typed status body is present.",),
+        "Add status_body or call LedgerBuilder.finalize_checked().",
+    ),
+    "finality.missing_checker_or_rule_version": ProblemExplanation(
+        "finality.missing_checker_or_rule_version",
+        "A finality body lacks checker or rule version.",
+        ("checker_version_id or rule_version_id is empty.",),
+        "Record finite checker and rule version identifiers.",
+    ),
     "gate.cycle": ProblemExplanation(
         "gate.cycle",
         "Gate requirement and gate pass support each other.",
@@ -157,6 +298,23 @@ PROBLEM_EXPLANATIONS: dict[str, ProblemExplanation] = {
         "One obligation has incompatible lifecycle targets in one event.",
         ("Two lifecycle records disagree for the same obligation/event.",),
         "Split events or resolve the lifecycle conflict.",
+    ),
+    "kernel.missing_context": ProblemExplanation(
+        "kernel.missing_context",
+        "The mode requires a finite validation/object kernel context.",
+        (
+            (
+                "Strict finality, agent_action, or self_modification was validated "
+                "without kernel records."
+            ),
+        ),
+        "Add kernel_admission/root_debt records or pass a Kernel object.",
+    ),
+    "mode.unknown": ProblemExplanation(
+        "mode.unknown",
+        "The requested mode has no finite public contract.",
+        ("A custom mode name was used without explicit draft fallback.",),
+        "Use a built-in mode or pass --allow-unknown-mode-as-draft in the CLI.",
     ),
     "policy.generated_obligation_omission": ProblemExplanation(
         "policy.generated_obligation_omission",
@@ -258,6 +416,48 @@ PROBLEM_EXPLANATIONS: dict[str, ProblemExplanation] = {
         ("SettlednessDeclaration has no matching licensed SettlednessLicense.",),
         "Add a non-circular license or keep the distinction as residue.",
         ("D049",),
+    ),
+    "stage.missing_build_record": ProblemExplanation(
+        "stage.missing_build_record",
+        "A strict finality record is not emitted by any stage build record.",
+        ("status/admissibility body or checked output was added without stage provenance.",),
+        "Add a stage_build record with emitted_records and versions.",
+    ),
+    "stage.missing_checker_or_rule_version": ProblemExplanation(
+        "stage.missing_checker_or_rule_version",
+        "A finality stage build lacks checker or rule versions.",
+        ("rule_versions or checker_versions is empty.",),
+        "Record finite checker and rule versions on the stage build.",
+    ),
+    "stage.unfrozen_finality": ProblemExplanation(
+        "stage.unfrozen_finality",
+        "A strict finality record is in an unfrozen stage.",
+        ("The ledger was not frozen through finality.",),
+        "Call finalize/finalize_checked after appending finality records.",
+    ),
+    "status.missing_body": ProblemExplanation(
+        "status.missing_body",
+        "Checked status does not point at a status_body record.",
+        ("body_record_id is missing or points at another record type.",),
+        "Add a status_body record and point checked_status at it.",
+    ),
+    "status.missing_checker_or_rule_version": ProblemExplanation(
+        "status.missing_checker_or_rule_version",
+        "Checked status lacks checker or rule version.",
+        ("checker_version_id or rule_version_id is empty.",),
+        "Record finite checker and rule version identifiers.",
+    ),
+    "status.unchecked_final": ProblemExplanation(
+        "status.unchecked_final",
+        "Strict finality found checked_status.checked=false.",
+        ("The final status record is marked unchecked.",),
+        "Run a checker and set checked=true only when the body was checked.",
+    ),
+    "support.unavailable_evidence": ProblemExplanation(
+        "support.unavailable_evidence",
+        "An unavailable leaf was used as finality evidence.",
+        ("A finality support_ref points at an unavailable leaf.",),
+        "Use available evidence or keep the unavailable leaf as a visible blocker.",
     ),
     "obstruction.critical_undischarged": ProblemExplanation(
         "obstruction.critical_undischarged",

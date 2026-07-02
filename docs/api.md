@@ -34,6 +34,13 @@ Important helpers include:
 - `add_consistency_profile`
 - `add_null_certificate`
 - `add_respect_certificate`
+- `add_anchor_declaration`
+- `add_adequacy_record`
+- `add_kernel_admission`
+- `add_status_body`, `add_checked_status`
+- `add_pre_admissibility_support_vector`
+- `add_admissibility_body`, `add_checked_admissibility`
+- `finalize_checked`
 
 ## Validation
 
@@ -43,6 +50,16 @@ if result.errors:
     for problem in result.errors:
         print(problem.code, problem.message)
 ```
+
+Strict finality:
+
+```python
+ledger = builder.finalize_checked()
+result = validate_ledger(ledger, require_finality=True)
+```
+
+Unknown mode names raise `UnknownModeError` by default. Pass
+`allow_unknown_mode_as_draft=True` only for explicit draft fallback.
 
 ## Transitions
 

@@ -92,7 +92,7 @@ def test_artifact_audit_rejects_public_hygiene_failures(tmp_path: Path) -> None:
 
 
 def test_current_built_artifacts_pass_when_present() -> None:
-    artifacts = sorted(Path("dist").glob("fost_agent_ledger-1.0.0*"))
+    artifacts = sorted(Path("dist").glob("fost_agent_ledger-2.0.0*"))
     if not artifacts:
-        pytest.skip("1.0.0 artifacts are created by the build step")
+        pytest.skip("2.0.0 artifacts are created by the build step")
     assert audit_paths(artifacts) == []

@@ -5,8 +5,10 @@ from typing import Any, ClassVar
 
 from .enums import (
     Admissibility,
+    AnchorKind,
     CertificateStateValue,
     CertificateUseKind,
+    CoordinateKind,
     EnvironmentTokenKind,
     EvidenceDisposition,
     EvidenceState,
@@ -490,6 +492,116 @@ class KernelAdmissionPayload(TypedPayload):
 
 
 @dataclass(frozen=True)
+class AnchorDeclarationPayload(TypedPayload):
+    record_type: ClassVar[RecordType] = RecordType.ANCHOR_DECLARATION
+    anchor_id: str
+    target_id: str
+    anchor_kind: AnchorKind
+    event_id: str = "event-0"
+    event_free: bool = False
+    provenance_ref: str | None = None
+    root_debt_id: str | None = None
+    permitted_roles: tuple[str, ...] = ()
+    reason: str = ""
+
+
+@dataclass(frozen=True)
+class AdequacyRecordPayload(TypedPayload):
+    record_type: ClassVar[RecordType] = RecordType.ADEQUACY_RECORD
+    adequacy_id: str
+    component: str
+    state: EvidenceState
+    disposition: EvidenceDisposition
+    input_record_ids: tuple[str, ...] = ()
+    issue_ids: tuple[str, ...] = ()
+    obligation_ids: tuple[str, ...] = ()
+    support_refs: tuple[str, ...] = ()
+    checker_version_id: str = ""
+    rule_version_id: str = ""
+    mode: str = ""
+    waived: bool = False
+    reason: str = ""
+
+
+@dataclass(frozen=True)
+class StatusBodyPayload(TypedPayload):
+    record_type: ClassVar[RecordType] = RecordType.STATUS_BODY
+    body_id: str
+    target_id: str
+    support_coordinates: tuple[str, ...] = ()
+    read_coordinates: tuple[str, ...] = ()
+    respect_coordinates: tuple[str, ...] = ()
+    checker_version_id: str = ""
+    rule_version_id: str = ""
+    reads_final_output: bool = False
+    reason: str = ""
+
+
+@dataclass(frozen=True)
+class CheckedStatusPayload(TypedPayload):
+    record_type: ClassVar[RecordType] = RecordType.CHECKED_STATUS
+    status_id: str
+    body_record_id: str
+    status: Status
+    checker_version_id: str
+    rule_version_id: str = ""
+    read_coordinates: tuple[str, ...] = ()
+    respect_coordinates: tuple[str, ...] = ()
+    checked: bool = True
+    reads_final_output: bool = False
+    reason: str = ""
+
+
+@dataclass(frozen=True)
+class PreAdmissibilitySupportVectorPayload(TypedPayload):
+    record_type: ClassVar[RecordType] = RecordType.PRE_ADMISSIBILITY_SUPPORT_VECTOR
+    vector_id: str
+    target_id: str
+    support_coordinates: tuple[str, ...] = ()
+    validator_coordinates: tuple[str, ...] = ()
+    kernel_coordinates: tuple[str, ...] = ()
+    certificate_coordinates: tuple[str, ...] = ()
+    environment_coordinates: tuple[str, ...] = ()
+    obligation_coordinates: tuple[str, ...] = ()
+    adequacy_coordinates: tuple[str, ...] = ()
+    checker_version_id: str = ""
+    rule_version_id: str = ""
+    reason: str = ""
+
+
+@dataclass(frozen=True)
+class AdmissibilityBodyPayload(TypedPayload):
+    record_type: ClassVar[RecordType] = RecordType.ADMISSIBILITY_BODY
+    body_id: str
+    target_id: str
+    status_body_record_id: str | None = None
+    pre_admissibility_vector_id: str | None = None
+    support_coordinates: tuple[str, ...] = ()
+    read_coordinates: tuple[str, ...] = ()
+    respect_coordinates: tuple[str, ...] = ()
+    checker_version_id: str = ""
+    rule_version_id: str = ""
+    reads_final_output: bool = False
+    reason: str = ""
+
+
+@dataclass(frozen=True)
+class CheckedAdmissibilityPayload(TypedPayload):
+    record_type: ClassVar[RecordType] = RecordType.CHECKED_ADMISSIBILITY
+    admissibility_id: str
+    body_record_id: str
+    admissibility: Admissibility
+    checker_version_id: str
+    pre_admissibility_vector_id: str
+    rule_version_id: str = ""
+    read_coordinates: tuple[str, ...] = ()
+    respect_coordinates: tuple[str, ...] = ()
+    checked: bool = True
+    reads_final_output: bool = False
+    reason: str = ""
+
+
+@dataclass(frozen=True)
 class NullCertificatePayload(TypedPayload):
     record_type: ClassVar[RecordType] = RecordType.NULL_CERTIFICATE
     certificate_id: str
@@ -586,6 +698,10 @@ class TransitionWitnessPayload(TypedPayload):
     record_type: ClassVar[RecordType] = RecordType.TRANSITION_WITNESS
     coordinate: str
     witness_record_id: str
+    coordinate_kind: CoordinateKind | None = None
+    before_hash: str | None = None
+    after_hash: str | None = None
+    checker_version_id: str = ""
     reason: str = ""
 
 
@@ -645,6 +761,13 @@ PAYLOAD_TYPES: dict[RecordType, type[TypedPayload]] = {
     RecordType.VALIDATOR_TIMEOUT: ValidatorTimeoutPayload,
     RecordType.ROOT_DEBT: RootDebtPayload,
     RecordType.KERNEL_ADMISSION: KernelAdmissionPayload,
+    RecordType.ANCHOR_DECLARATION: AnchorDeclarationPayload,
+    RecordType.ADEQUACY_RECORD: AdequacyRecordPayload,
+    RecordType.STATUS_BODY: StatusBodyPayload,
+    RecordType.CHECKED_STATUS: CheckedStatusPayload,
+    RecordType.PRE_ADMISSIBILITY_SUPPORT_VECTOR: PreAdmissibilitySupportVectorPayload,
+    RecordType.ADMISSIBILITY_BODY: AdmissibilityBodyPayload,
+    RecordType.CHECKED_ADMISSIBILITY: CheckedAdmissibilityPayload,
     RecordType.NULL_CERTIFICATE: NullCertificatePayload,
     RecordType.CERTIFICATE_COVER: CertificateCoverPayload,
     RecordType.RESPECT_CERTIFICATE: RespectCertificatePayload,
@@ -692,12 +815,14 @@ def _normalize_payload_values(
         "source": _obligation_lifecycle_enum_for_payload(payload_type),
         "target": _obligation_lifecycle_enum_for_payload(payload_type),
         "kind": _kind_enum_for_payload(payload_type),
+        "anchor_kind": AnchorKind,
+        "coordinate_kind": CoordinateKind,
         "target_state": TargetState,
         "unavailable_policy": UnavailablePolicy,
         "use_kind": CertificateUseKind,
     }
     for key, enum_type in enum_fields.items():
-        if key in normalized and enum_type is not None:
+        if key in normalized and normalized[key] is not None and enum_type is not None:
             normalized[key] = enum_type(normalized[key])
     for key in (
         "accepted_by",
@@ -719,6 +844,7 @@ def _normalize_payload_values(
         "obstruction_ids",
         "preserved_checks",
         "preserved_record_ids",
+        "permitted_roles",
         "profiles",
         "provenance_edge_ids",
         "record_ids",
@@ -753,6 +879,10 @@ def _normalize_payload_values(
         "status_coordinates",
         "support_coordinates",
         "required_certificates",
+        "input_record_ids",
+        "issue_ids",
+        "obligation_ids",
+        "adequacy_coordinates",
     ):
         if key in normalized and isinstance(normalized[key], list):
             normalized[key] = tuple(str(item) for item in normalized[key])
@@ -768,7 +898,7 @@ def _normalize_payload_values(
 
 
 def _state_enum_for_payload(payload_type: type[TypedPayload]) -> type | None:
-    if payload_type in {EvidencePayload, AdequacyPayload}:
+    if payload_type in {EvidencePayload, AdequacyPayload, AdequacyRecordPayload}:
         return EvidenceState
     if payload_type is CertificateStatePayload:
         return CertificateStateValue
@@ -790,7 +920,7 @@ def _kind_enum_for_payload(payload_type: type[TypedPayload]) -> type | None:
 def _status_enum_for_payload(payload_type: type[TypedPayload]) -> type | None:
     if payload_type is KernelAdmissionPayload:
         return KernelAdmissionStatus
-    if payload_type in {StatusPayload, ValidationResultPayload}:
+    if payload_type in {StatusPayload, CheckedStatusPayload, ValidationResultPayload}:
         return Status
     return None
 

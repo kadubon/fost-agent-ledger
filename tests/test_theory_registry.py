@@ -23,7 +23,7 @@ def test_theory_registry_is_tex_derived_complete_and_independent() -> None:
     rows = iter_theory_coverage()
     assert docs_registry == package_registry
     assert registry["doi"] == DOI
-    assert registry["registry_version"] == "1.0.0"
+    assert registry["registry_version"] == "2.0.0"
     assert registry["item_count"] == 184
     assert len(rows) == 184
     assert {row.coverage for row in rows} == {"implemented"}
@@ -157,7 +157,7 @@ def test_schema_payload_builder_and_problem_docs_are_synced() -> None:
 
 
 def test_version_is_v100_with_schema_v10() -> None:
-    assert __version__ == "1.0.0"
+    assert __version__ == "2.0.0"
     schema = export_json_schema()
-    assert schema["$id"].endswith("fost-agent-ledger-1.0.schema.json")
-    assert schema["$defs"]["EvaluatedLedger"]["properties"]["schema_version"]["const"] == "1.0"
+    assert schema["$id"].endswith("fost-agent-ledger-2.0.schema.json")
+    assert schema["$defs"]["EvaluatedLedger"]["properties"]["schema_version"]["const"] == "2.0"

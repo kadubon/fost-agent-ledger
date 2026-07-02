@@ -9,6 +9,7 @@ Paper DOI: [10.5281/zenodo.20995846](https://doi.org/10.5281/zenodo.20995846).
 3. Use [Workflows](workflows.md) to choose records for your use case.
 4. Use [Problem Codes](problem_codes.md) when validation returns errors.
 5. Use [JSON Contract](json_contract.md) when another language or service writes ledgers.
+6. Use [CLI](cli.md) or [API](api.md) for strict finality options before publishing checked outputs.
 
 Operational references:
 

@@ -11853,11 +11853,11 @@
     "Domain Theory, Computable Analysis, and Approximation",
     "Bounded Rationality and Assurance"
   ],
-  "registry_version": "1.0.0",
+  "registry_version": "2.0.0",
   "anchor_contract": {
     "runtime_modules": "Importable Python modules that implement or expose the finite runtime concept.",
     "runtime_symbols": "Importable Python symbols that represent the concept, validator, payload, or registry row.",
-    "schema_defs": "JSON Schema $defs names that expose the public v1.0 wire contract.",
+    "schema_defs": "JSON Schema $defs names that expose the public v2.0 wire contract.",
     "problem_codes": "Machine-readable Problem.code values connected to the item when applicable.",
     "doc_paths": "Public documentation paths that explain the concept or design boundary.",
     "test_paths": "Test files that validate runtime behavior, countermodels, or registry/docs sync."

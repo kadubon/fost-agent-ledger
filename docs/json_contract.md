@@ -1,12 +1,12 @@
 # JSON Contract
 
-The canonical ledger version is `1.0`.
+The canonical ledger version is `2.0`.
 
 ## Ledger Root
 
 Required fields:
 
-- `schema_version`: always `"1.0"` for new ledgers.
+- `schema_version`: always `"2.0"` for new ledgers.
 - `agent_id`: the finite agent/process identifier.
 - `mode`: the mode contract name.
 - `records`: finite `LedgerRecord` items.
@@ -22,7 +22,7 @@ Optional but recommended fields:
 
 ## Migration
 
-`EvaluatedLedger.from_dict` accepts v0.1, v0.2, v0.3, and v0.4 shaped ledgers and returns a v1.0 object. The migration is structural only. It does not invent evidence, certificates, witnesses, or validation results.
+`EvaluatedLedger.from_dict` accepts v0.1, v0.2, v0.3, v0.4, and v1.0 shaped ledgers and returns a v2.0 object. The migration is structural only. It does not invent evidence, certificates, witnesses, or validation results.
 
 The migration records `metadata.migrated_from_schema_version`.
 
@@ -37,7 +37,7 @@ Each record has:
 - `timestamp`
 - `payload`
 
-The JSON Schema defines record-type-specific payload shapes. Important v1.0 record types include:
+The JSON Schema defines record-type-specific payload shapes. Important v2.0 record types include:
 
 - `process_class`
 - `distinction_basis`
@@ -61,6 +61,13 @@ The JSON Schema defines record-type-specific payload shapes. Important v1.0 reco
 - `validator_timeout`
 - `null_certificate`
 - `respect_certificate`
+- `anchor_declaration`
+- `adequacy_record`
+- `status_body`
+- `checked_status`
+- `pre_admissibility_support_vector`
+- `admissibility_body`
+- `checked_admissibility`
 - `compression_profile_class`
 - `compression_factorization`
 - `record_preserving_refinement`

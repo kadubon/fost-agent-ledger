@@ -5,8 +5,10 @@ from typing import Any
 
 from ..enums import (
     Admissibility,
+    AnchorKind,
     CertificateStateValue,
     CertificateUseKind,
+    CoordinateKind,
     DeadlineStatus,
     EnvironmentTokenKind,
     EvidenceDisposition,
@@ -30,13 +32,13 @@ from ..enums import (
 
 
 def export_json_schema() -> dict[str, Any]:
-    """Return the portable v1.0 JSON Schema bundle for public objects."""
+    """Return the portable v2.0 JSON Schema bundle for public objects."""
 
     defs = _defs()
     return {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
-        "$id": "https://example.org/fost-agent-ledger-1.0.schema.json",
-        "title": "fost-agent-ledger v1.0",
+        "$id": "https://example.org/fost-agent-ledger-2.0.schema.json",
+        "title": "fost-agent-ledger v2.0",
         "oneOf": [
             {"$ref": "#/$defs/EvaluatedLedger"},
             {"$ref": "#/$defs/OperationalCut"},
@@ -131,6 +133,13 @@ def _ledger_record_schema() -> dict[str, Any]:
         RecordType.VALIDATOR_TIMEOUT: "ValidatorTimeoutPayload",
         RecordType.ROOT_DEBT: "RootDebtPayload",
         RecordType.KERNEL_ADMISSION: "KernelAdmissionPayload",
+        RecordType.ANCHOR_DECLARATION: "AnchorDeclarationPayload",
+        RecordType.ADEQUACY_RECORD: "AdequacyRecordPayload",
+        RecordType.STATUS_BODY: "StatusBodyPayload",
+        RecordType.CHECKED_STATUS: "CheckedStatusPayload",
+        RecordType.PRE_ADMISSIBILITY_SUPPORT_VECTOR: "PreAdmissibilitySupportVectorPayload",
+        RecordType.ADMISSIBILITY_BODY: "AdmissibilityBodyPayload",
+        RecordType.CHECKED_ADMISSIBILITY: "CheckedAdmissibilityPayload",
         RecordType.NULL_CERTIFICATE: "NullCertificatePayload",
         RecordType.CERTIFICATE_COVER: "CertificateCoverPayload",
         RecordType.RESPECT_CERTIFICATE: "RespectCertificatePayload",
@@ -591,6 +600,122 @@ def _payload_schemas() -> dict[str, Any]:
             },
             ["admission_id", "version_id", "kind", "status", "basis_kind", "checker_version_id"],
         ),
+        "AnchorDeclarationPayload": _object(
+            {
+                "anchor_id": {"type": "string"},
+                "target_id": {"type": "string"},
+                "anchor_kind": {"type": "string", "enum": _enum(AnchorKind)},
+                "event_id": {"type": "string"},
+                "event_free": {"type": "boolean"},
+                "provenance_ref": {"type": ["string", "null"]},
+                "root_debt_id": {"type": ["string", "null"]},
+                "permitted_roles": {"$ref": "#/$defs/StringArray"},
+                "reason": {"type": "string"},
+            },
+            ["anchor_id", "target_id", "anchor_kind"],
+        ),
+        "AdequacyRecordPayload": _object(
+            {
+                "adequacy_id": {"type": "string"},
+                "component": {"type": "string"},
+                "state": {"type": "string", "enum": _enum(EvidenceState)},
+                "disposition": {"type": "string", "enum": _enum(EvidenceDisposition)},
+                "input_record_ids": {"$ref": "#/$defs/StringArray"},
+                "issue_ids": {"$ref": "#/$defs/StringArray"},
+                "obligation_ids": {"$ref": "#/$defs/StringArray"},
+                "support_refs": {"$ref": "#/$defs/StringArray"},
+                "checker_version_id": {"type": "string"},
+                "rule_version_id": {"type": "string"},
+                "mode": {"type": "string"},
+                "waived": {"type": "boolean"},
+                "reason": {"type": "string"},
+            },
+            ["adequacy_id", "component", "state", "disposition"],
+        ),
+        "StatusBodyPayload": _object(
+            {
+                "body_id": {"type": "string"},
+                "target_id": {"type": "string"},
+                "support_coordinates": {"$ref": "#/$defs/StringArray"},
+                "read_coordinates": {"$ref": "#/$defs/StringArray"},
+                "respect_coordinates": {"$ref": "#/$defs/StringArray"},
+                "checker_version_id": {"type": "string"},
+                "rule_version_id": {"type": "string"},
+                "reads_final_output": {"type": "boolean"},
+                "reason": {"type": "string"},
+            },
+            ["body_id", "target_id"],
+        ),
+        "CheckedStatusPayload": _object(
+            {
+                "status_id": {"type": "string"},
+                "body_record_id": {"type": "string"},
+                "status": {"type": "string", "enum": _enum(Status)},
+                "checker_version_id": {"type": "string"},
+                "rule_version_id": {"type": "string"},
+                "read_coordinates": {"$ref": "#/$defs/StringArray"},
+                "respect_coordinates": {"$ref": "#/$defs/StringArray"},
+                "checked": {"type": "boolean"},
+                "reads_final_output": {"type": "boolean"},
+                "reason": {"type": "string"},
+            },
+            ["status_id", "body_record_id", "status", "checker_version_id"],
+        ),
+        "PreAdmissibilitySupportVectorPayload": _object(
+            {
+                "vector_id": {"type": "string"},
+                "target_id": {"type": "string"},
+                "support_coordinates": {"$ref": "#/$defs/StringArray"},
+                "validator_coordinates": {"$ref": "#/$defs/StringArray"},
+                "kernel_coordinates": {"$ref": "#/$defs/StringArray"},
+                "certificate_coordinates": {"$ref": "#/$defs/StringArray"},
+                "environment_coordinates": {"$ref": "#/$defs/StringArray"},
+                "obligation_coordinates": {"$ref": "#/$defs/StringArray"},
+                "adequacy_coordinates": {"$ref": "#/$defs/StringArray"},
+                "checker_version_id": {"type": "string"},
+                "rule_version_id": {"type": "string"},
+                "reason": {"type": "string"},
+            },
+            ["vector_id", "target_id"],
+        ),
+        "AdmissibilityBodyPayload": _object(
+            {
+                "body_id": {"type": "string"},
+                "target_id": {"type": "string"},
+                "status_body_record_id": {"type": ["string", "null"]},
+                "pre_admissibility_vector_id": {"type": ["string", "null"]},
+                "support_coordinates": {"$ref": "#/$defs/StringArray"},
+                "read_coordinates": {"$ref": "#/$defs/StringArray"},
+                "respect_coordinates": {"$ref": "#/$defs/StringArray"},
+                "checker_version_id": {"type": "string"},
+                "rule_version_id": {"type": "string"},
+                "reads_final_output": {"type": "boolean"},
+                "reason": {"type": "string"},
+            },
+            ["body_id", "target_id"],
+        ),
+        "CheckedAdmissibilityPayload": _object(
+            {
+                "admissibility_id": {"type": "string"},
+                "body_record_id": {"type": "string"},
+                "admissibility": {"type": "string", "enum": _enum(Admissibility)},
+                "checker_version_id": {"type": "string"},
+                "pre_admissibility_vector_id": {"type": "string"},
+                "rule_version_id": {"type": "string"},
+                "read_coordinates": {"$ref": "#/$defs/StringArray"},
+                "respect_coordinates": {"$ref": "#/$defs/StringArray"},
+                "checked": {"type": "boolean"},
+                "reads_final_output": {"type": "boolean"},
+                "reason": {"type": "string"},
+            },
+            [
+                "admissibility_id",
+                "body_record_id",
+                "admissibility",
+                "checker_version_id",
+                "pre_admissibility_vector_id",
+            ],
+        ),
         "NullCertificatePayload": _object(
             {
                 "certificate_id": {"type": "string"},
@@ -687,6 +812,13 @@ def _payload_schemas() -> dict[str, Any]:
             {
                 "coordinate": {"type": "string"},
                 "witness_record_id": {"type": "string"},
+                "coordinate_kind": {
+                    "type": ["string", "null"],
+                    "enum": [*_enum(CoordinateKind), None],
+                },
+                "before_hash": {"type": ["string", "null"]},
+                "after_hash": {"type": ["string", "null"]},
+                "checker_version_id": {"type": "string"},
                 "reason": {"type": "string"},
             },
             ["coordinate", "witness_record_id"],
@@ -717,7 +849,7 @@ def _ledger_schema() -> dict[str, Any]:
             "event_order",
         ],
         "properties": {
-            "schema_version": {"const": "1.0"},
+            "schema_version": {"const": "2.0"},
             "agent_id": {"type": "string"},
             "mode": {"type": "string"},
             "records": {"type": "array", "items": {"$ref": "#/$defs/LedgerRecord"}},
@@ -740,7 +872,7 @@ def _cut_schema() -> dict[str, Any]:
         "type": "object",
         "required": ["schema_version", "cut_id", "created_at", "agent_id", "mode", "ledger"],
         "properties": {
-            "schema_version": {"const": "1.0"},
+            "schema_version": {"const": "2.0"},
             "cut_id": {"type": "string"},
             "created_at": {"type": "string", "format": "date-time"},
             "agent_id": {"type": "string"},

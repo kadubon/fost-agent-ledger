@@ -4,6 +4,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from .enums import ModeName, Status
+from .errors import UnknownModeError
 from .model import JsonDict, JsonModel
 
 
@@ -157,7 +158,12 @@ class ModeContract(JsonModel):
         )
 
     @classmethod
-    def for_name(cls, name: str | ModeContract) -> ModeContract:
+    def for_name(
+        cls,
+        name: str | ModeContract,
+        *,
+        allow_unknown_as_draft: bool = False,
+    ) -> ModeContract:
         if isinstance(name, ModeContract):
             return name
         normalized = name.replace("-", "_").lower()
@@ -170,7 +176,30 @@ class ModeContract(JsonModel):
             ModeName.AGENT_ACTION.value: cls.agent_action,
             ModeName.SELF_MODIFICATION.value: cls.self_modification,
         }
-        return factories.get(normalized, cls.draft)()
+        factory = factories.get(normalized)
+        if factory is not None:
+            return factory()
+        if allow_unknown_as_draft:
+            contract = cls.draft()
+            return cls(
+                name=normalized,
+                admissible_status_region=contract.admissible_status_region,
+                forbidden_failures=contract.forbidden_failures,
+                required_read_coordinates=contract.required_read_coordinates,
+                required_respect_coordinates=contract.required_respect_coordinates,
+                gate_rules=contract.gate_rules,
+                issue_selection_rules=contract.issue_selection_rules,
+                obligation_selection_rules=contract.obligation_selection_rules,
+                environment_token_selection_rules=contract.environment_token_selection_rules,
+                critic_role_requirements=contract.critic_role_requirements,
+                impact_requirements=contract.impact_requirements,
+                adequacy_rules=contract.adequacy_rules,
+                reason=(
+                    "Unknown mode explicitly evaluated under draft fallback; "
+                    "do not treat this as a mode-specific guarantee."
+                ),
+            )
+        raise UnknownModeError(f"unknown mode contract: {name!r}")
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> ModeContract:

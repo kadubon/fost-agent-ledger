@@ -59,14 +59,50 @@ class EnvironmentToken(JsonModel):
         )
 
 
+@dataclass(frozen=True)
+class EnvironmentRequirement(JsonModel):
+    kind: EnvironmentTokenKind | None = None
+    name: str | None = None
+    reason: str = ""
+
+    @classmethod
+    def from_selector(cls, selector: str) -> EnvironmentRequirement:
+        try:
+            return cls(kind=EnvironmentTokenKind(selector))
+        except ValueError:
+            return cls(name=selector)
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> EnvironmentRequirement:
+        kind_raw = data.get("kind")
+        return cls(
+            kind=EnvironmentTokenKind(kind_raw) if kind_raw else None,
+            name=str(data["name"]) if data.get("name") else None,
+            reason=str(data.get("reason", "")),
+        )
+
+    def label(self) -> str:
+        if self.kind is not None and self.name:
+            return f"{self.kind.value}:{self.name}"
+        if self.kind is not None:
+            return self.kind.value
+        return self.name or "environment"
+
+    def matches(self, token: EnvironmentToken) -> bool:
+        if self.kind is not None and token.kind != self.kind:
+            return False
+        return not (self.name is not None and token.name != self.name)
+
+
 def validate_environment_tokens(
     tokens: tuple[EnvironmentToken, ...],
     *,
     required_names: tuple[str, ...] = (),
+    required_requirements: tuple[EnvironmentRequirement, ...] = (),
     high_impact: bool = False,
 ) -> tuple[Problem, ...]:
     problems: list[Problem] = []
-    selected = {token.name: token for token in tokens if token.selected}
+    selected_tokens = tuple(token for token in tokens if token.selected)
     for token in tokens:
         if token.selected and token.state == TokenState.UNSELECTED:
             problems.append(
@@ -99,15 +135,23 @@ def validate_environment_tokens(
                     related_record_ids=(token.token_id,),
                 )
             )
-    for name in required_names:
-        selected_token = selected.get(name)
+    requirements = (
+        *required_requirements,
+        *(EnvironmentRequirement.from_selector(name) for name in required_names),
+    )
+    for requirement in requirements:
+        selected_token = next(
+            (token for token in selected_tokens if requirement.matches(token)),
+            None,
+        )
+        label = requirement.label()
         if selected_token is None:
             problems.append(
                 Problem(
                     code="environment.required_unselected",
-                    message=f"required environment token {name!r} is not selected",
+                    message=f"required environment token {label!r} is not selected",
                     severity=ProblemSeverity.ERROR if high_impact else ProblemSeverity.WARNING,
-                    related_record_ids=(name,),
+                    related_record_ids=(label,),
                 )
             )
             continue
@@ -121,7 +165,7 @@ def validate_environment_tokens(
                 Problem(
                     code="environment.selected_non_ok",
                     message=(
-                        f"selected environment token {name!r} is {selected_token.state.value}"
+                        f"selected environment token {label!r} is {selected_token.state.value}"
                     ),
                     severity=ProblemSeverity.ERROR,
                     related_record_ids=(selected_token.token_id,),
@@ -131,7 +175,7 @@ def validate_environment_tokens(
             problems.append(
                 Problem(
                     code="environment.unknown_high_impact",
-                    message=f"selected high-impact environment token {name!r} is unknown",
+                    message=f"selected high-impact environment token {label!r} is unknown",
                     severity=ProblemSeverity.ERROR,
                     related_record_ids=(selected_token.token_id,),
                 )

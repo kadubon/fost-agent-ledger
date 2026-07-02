@@ -40,23 +40,32 @@ print(result.summary)
 ```
 
 The output tells you whether the finite ledger is supported and admissible for the selected mode.
+For a publishable checked ledger, use `builder.finalize_checked()` and validate with
+`validate_ledger(ledger, require_finality=True)`. That stricter path requires separate finite
+records for the status body, checked status, pre-admissibility support vector, admissibility body,
+checked admissibility, adequacy dispositions, anchor declarations, and kernel context.
 
 ## 3-Minute CLI Quickstart
 
 ```bash
 fost-ledger init --mode research_summary --agent-id agent-1 > ledger.json
 fost-ledger validate ledger.json
+fost-ledger validate ledger.json --require-finality
 fost-ledger explain validator.timeout
 fost-ledger coverage
 ```
 
 The CLI is useful in CI, evaluation jobs, and manual review because the output is JSON and the problem codes are stable.
+Unknown modes fail closed by default. Use `--allow-unknown-mode-as-draft` only when you explicitly
+want draft fallback semantics.
 
 ## Three Ways To Use It
 
 - Python API: use `LedgerBuilder` and `validate_ledger` inside an agent or evaluation pipeline.
 - CLI: run `fost-ledger init`, `fost-ledger validate`, `fost-ledger diff`, and `fost-ledger explain CODE`.
-- JSON only: write canonical `schema_version: "1.0"` ledgers and validate them with the exported JSON Schema.
+- JSON only: write canonical `schema_version: "2.0"` ledgers and validate them with the exported JSON Schema.
+- Strict finality: require a checked output path with `require_finality=True` or
+  `fost-ledger validate --require-finality`.
 
 ## What A Ledger Contains
 
@@ -99,7 +108,7 @@ Most agent audit logs store a transcript or a score. `fost-agent-ledger` stores 
 - [Concepts](docs/concepts.md): plain-language glossary.
 - [Workflows](docs/workflows.md): practical mode-specific recipes.
 - [Problem Codes](docs/problem_codes.md): how to fix validator output.
-- [JSON Contract](docs/json_contract.md): v1.0 schema and migration.
+- [JSON Contract](docs/json_contract.md): v2.0 schema and migration.
 - [Theory Mapping](docs/theory_mapping.md): manuscript-to-implementation coverage.
 - [Release And PyPI Publishing](docs/release.md): Trusted Publishing setup and release checks.
 

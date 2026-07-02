@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.0.0
+
+- Promoted canonical ledgers to `schema_version: "2.0"` while retaining structural migration from v0.1-v1.0 ledgers.
+- Added strict finality validation with typed status body, checked status, pre-admissibility support vector, admissibility body, checked admissibility, persisted adequacy records, typed anchor declarations, and kernel context checks.
+- Made unknown mode handling fail closed by default; explicit draft fallback is available through API/CLI opt-in.
+- Hardened certificate scope coverage so missing scope keys no longer silently cover constrained targets.
+- Added public builder helpers for checked finalization, finality records, anchor declarations, adequacy records, and kernel admissions.
+
 ## 1.0.0
 
 - Promoted the package to the stable v1.0.0 release and canonical ledger `schema_version` to `"1.0"`.

@@ -1,20 +1,27 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime
 from typing import Any
 
 from .certificates import Certificate, CertificateState, CertificateTarget, CertificateUse
 from .enums import (
     CERTIFICATE_USE_TO_SUPPORT_ROLE,
+    AnchorKind,
     CertificateStateValue,
     CertificateUseKind,
     EnvironmentTokenKind,
+    EvidenceDisposition,
+    EvidenceState,
     ImpactLevel,
     IssueSeverity,
     JudgmentKind,
+    KernelAdmissionBasisKind,
+    KernelAdmissionKind,
+    KernelAdmissionStatus,
     LedgerStage,
     ObligationLifecycle,
+    PhaseLevel,
     RecordType,
     SupportRole,
     TokenState,
@@ -24,7 +31,9 @@ from .ids import new_id
 from .issues import Issue
 from .ledger import EvaluatedLedger
 from .model import LedgerRecord, SupportEdge, to_plain
+from .modes import ModeContract
 from .obligations import Obligation
+from .stages import StageBuildRecord, ValidationCoordinate
 
 
 @dataclass
@@ -1035,8 +1044,581 @@ class LedgerBuilder:
         self._ledger = self._ledger.add_record(record)
         return record
 
+    def add_anchor_declaration(
+        self,
+        *,
+        anchor_id: str,
+        anchor_kind: AnchorKind | str = AnchorKind.DECLARED_SUPPORT,
+        target_id: str | None = None,
+        event_id: str = "event-0",
+        event_free: bool = False,
+        provenance_ref: str | None = None,
+        root_debt_id: str | None = None,
+        permitted_roles: list[str] | tuple[str, ...] = (),
+        reason: str = "",
+    ) -> LedgerRecord:
+        declaration_id = new_id("anchor_decl")
+        record = LedgerRecord.create(
+            RecordType.ANCHOR_DECLARATION,
+            LedgerStage.CHECKED_CORE,
+            {
+                "anchor_id": anchor_id,
+                "target_id": target_id or anchor_id,
+                "anchor_kind": AnchorKind(anchor_kind),
+                "event_id": event_id,
+                "event_free": event_free,
+                "provenance_ref": provenance_ref,
+                "root_debt_id": root_debt_id,
+                "permitted_roles": tuple(permitted_roles),
+                "reason": reason,
+            },
+            id=declaration_id,
+            event_id=event_id,
+            source=self.agent_id,
+        )
+        self._ledger = self._ledger.add_record(record)
+        return record
+
+    def add_adequacy_record(
+        self,
+        *,
+        component: str,
+        state: EvidenceState | str = EvidenceState.PASS,
+        disposition: EvidenceDisposition | str = EvidenceDisposition.ACCEPTED,
+        adequacy_id: str | None = None,
+        input_record_ids: list[str] | tuple[str, ...] = (),
+        issue_ids: list[str] | tuple[str, ...] = (),
+        obligation_ids: list[str] | tuple[str, ...] = (),
+        support_refs: list[str] | tuple[str, ...] = (),
+        checker_version_id: str = "checker-v1",
+        rule_version_id: str = "rules-v1",
+        mode: str | None = None,
+        waived: bool = False,
+        reason: str = "",
+    ) -> LedgerRecord:
+        record_id = adequacy_id or new_id("adequacy")
+        record = LedgerRecord.create(
+            RecordType.ADEQUACY_RECORD,
+            LedgerStage.CHECKED_POLICY,
+            {
+                "adequacy_id": record_id,
+                "component": component,
+                "state": EvidenceState(state),
+                "disposition": EvidenceDisposition(disposition),
+                "input_record_ids": tuple(input_record_ids),
+                "issue_ids": tuple(issue_ids),
+                "obligation_ids": tuple(obligation_ids),
+                "support_refs": tuple(support_refs),
+                "checker_version_id": checker_version_id,
+                "rule_version_id": rule_version_id,
+                "mode": mode or self.mode,
+                "waived": waived,
+                "reason": reason,
+            },
+            id=record_id,
+            source=self.agent_id,
+            support_refs=tuple(support_refs),
+        )
+        self._ledger = self._ledger.add_record(record)
+        return record
+
+    def add_kernel_admission(
+        self,
+        *,
+        version_id: str,
+        checker_version_id: str,
+        admission_id: str | None = None,
+        kind: KernelAdmissionKind | str = KernelAdmissionKind.RULE,
+        status: KernelAdmissionStatus | str = KernelAdmissionStatus.ADMITTED,
+        basis_kind: KernelAdmissionBasisKind | str = KernelAdmissionBasisKind.ROOT,
+        basis_id: str | None = None,
+        root_debt_id: str | None = None,
+        reason: str = "",
+    ) -> LedgerRecord:
+        record_id = admission_id or new_id("kernel_admission")
+        record = LedgerRecord.create(
+            RecordType.KERNEL_ADMISSION,
+            LedgerStage.CHECKED_CORE,
+            {
+                "admission_id": record_id,
+                "version_id": version_id,
+                "kind": KernelAdmissionKind(kind),
+                "status": KernelAdmissionStatus(status),
+                "basis_kind": KernelAdmissionBasisKind(basis_kind),
+                "checker_version_id": checker_version_id,
+                "basis_id": basis_id,
+                "root_debt_id": root_debt_id,
+                "reason": reason,
+            },
+            id=record_id,
+            source=self.agent_id,
+        )
+        self._ledger = self._ledger.add_record(record)
+        return record
+
+    def add_status_body(
+        self,
+        *,
+        target_id: str,
+        body_id: str | None = None,
+        support_coordinates: list[str] | tuple[str, ...] = (),
+        read_coordinates: list[str] | tuple[str, ...] = (),
+        respect_coordinates: list[str] | tuple[str, ...] = (),
+        support_refs: list[str] | tuple[str, ...] = (),
+        checker_version_id: str = "checker-v1",
+        rule_version_id: str = "rules-v1",
+        reads_final_output: bool = False,
+        reason: str = "",
+    ) -> LedgerRecord:
+        record_id = body_id or new_id("status_body")
+        record = LedgerRecord.create(
+            RecordType.STATUS_BODY,
+            LedgerStage.CHECKED_STATUS,
+            {
+                "body_id": record_id,
+                "target_id": target_id,
+                "support_coordinates": tuple(support_coordinates),
+                "read_coordinates": tuple(read_coordinates),
+                "respect_coordinates": tuple(respect_coordinates),
+                "checker_version_id": checker_version_id,
+                "rule_version_id": rule_version_id,
+                "reads_final_output": reads_final_output,
+                "reason": reason,
+            },
+            id=record_id,
+            source=self.agent_id,
+            support_refs=tuple(support_refs),
+            metadata={"target_id": target_id},
+        )
+        self._ledger = self._ledger.add_record(record)
+        self._set_validation_coordinate(record, PhaseLevel.STATUS_BODY, target_id=target_id)
+        for source_id in support_refs:
+            self._ledger = self._ledger.add_support_edge(
+                SupportEdge(
+                    source_id=source_id,
+                    target_id=record.id,
+                    role=SupportRole.STATUS_BODY,
+                    reason=reason,
+                    witness_id=source_id,
+                )
+            )
+        return record
+
+    def add_checked_status(
+        self,
+        *,
+        body_record_id: str,
+        status: str = "supported",
+        status_id: str | None = None,
+        read_coordinates: list[str] | tuple[str, ...] = (),
+        respect_coordinates: list[str] | tuple[str, ...] = (),
+        support_refs: list[str] | tuple[str, ...] = (),
+        checker_version_id: str = "checker-v1",
+        rule_version_id: str = "rules-v1",
+        checked: bool = True,
+        reads_final_output: bool = False,
+        reason: str = "",
+    ) -> LedgerRecord:
+        record_id = status_id or new_id("checked_status")
+        refs = tuple(dict.fromkeys((body_record_id, *support_refs)))
+        record = LedgerRecord.create(
+            RecordType.CHECKED_STATUS,
+            LedgerStage.CHECKED_STATUS,
+            {
+                "status_id": record_id,
+                "body_record_id": body_record_id,
+                "status": status,
+                "checker_version_id": checker_version_id,
+                "rule_version_id": rule_version_id,
+                "read_coordinates": tuple(read_coordinates),
+                "respect_coordinates": tuple(respect_coordinates),
+                "checked": checked,
+                "reads_final_output": reads_final_output,
+                "reason": reason,
+            },
+            id=record_id,
+            source=self.agent_id,
+            support_refs=refs,
+        )
+        self._ledger = self._ledger.add_record(record).mark_checked(record.id)
+        self._set_validation_coordinate(record, PhaseLevel.CHECKED_STATUS)
+        self._ledger = self._ledger.add_support_edge(
+            SupportEdge(
+                source_id=body_record_id,
+                target_id=record.id,
+                role=SupportRole.STATUS_CHECK,
+                reason=reason,
+                witness_id=body_record_id,
+            )
+        )
+        return record
+
+    def add_pre_admissibility_support_vector(
+        self,
+        *,
+        target_id: str,
+        vector_id: str | None = None,
+        support_coordinates: list[str] | tuple[str, ...] = (),
+        validator_coordinates: list[str] | tuple[str, ...] = (),
+        kernel_coordinates: list[str] | tuple[str, ...] = (),
+        certificate_coordinates: list[str] | tuple[str, ...] = (),
+        environment_coordinates: list[str] | tuple[str, ...] = (),
+        obligation_coordinates: list[str] | tuple[str, ...] = (),
+        adequacy_coordinates: list[str] | tuple[str, ...] = (),
+        support_refs: list[str] | tuple[str, ...] = (),
+        checker_version_id: str = "checker-v1",
+        rule_version_id: str = "rules-v1",
+        reason: str = "",
+    ) -> LedgerRecord:
+        record_id = vector_id or new_id("pre_admissibility")
+        record = LedgerRecord.create(
+            RecordType.PRE_ADMISSIBILITY_SUPPORT_VECTOR,
+            LedgerStage.CHECKED_ADMISSIBILITY,
+            {
+                "vector_id": record_id,
+                "target_id": target_id,
+                "support_coordinates": tuple(support_coordinates),
+                "validator_coordinates": tuple(validator_coordinates),
+                "kernel_coordinates": tuple(kernel_coordinates),
+                "certificate_coordinates": tuple(certificate_coordinates),
+                "environment_coordinates": tuple(environment_coordinates),
+                "obligation_coordinates": tuple(obligation_coordinates),
+                "adequacy_coordinates": tuple(adequacy_coordinates),
+                "checker_version_id": checker_version_id,
+                "rule_version_id": rule_version_id,
+                "reason": reason,
+            },
+            id=record_id,
+            source=self.agent_id,
+            metadata={"target_id": target_id},
+        )
+        self._ledger = self._ledger.add_record(record)
+        self._set_validation_coordinate(record, PhaseLevel.ADMISSIBILITY_BODY, target_id=target_id)
+        for source_id in support_refs:
+            self._ledger = self._ledger.add_support_edge(
+                SupportEdge(
+                    source_id=source_id,
+                    target_id=record.id,
+                    role=SupportRole.ADMISSIBILITY_BODY,
+                    reason=reason,
+                    witness_id=source_id,
+                )
+            )
+        return record
+
+    def add_admissibility_body(
+        self,
+        *,
+        target_id: str,
+        body_id: str | None = None,
+        status_body_record_id: str | None = None,
+        pre_admissibility_vector_id: str | None = None,
+        support_coordinates: list[str] | tuple[str, ...] = (),
+        read_coordinates: list[str] | tuple[str, ...] = (),
+        respect_coordinates: list[str] | tuple[str, ...] = (),
+        support_refs: list[str] | tuple[str, ...] = (),
+        checker_version_id: str = "checker-v1",
+        rule_version_id: str = "rules-v1",
+        reads_final_output: bool = False,
+        reason: str = "",
+    ) -> LedgerRecord:
+        record_id = body_id or new_id("admissibility_body")
+        record = LedgerRecord.create(
+            RecordType.ADMISSIBILITY_BODY,
+            LedgerStage.CHECKED_ADMISSIBILITY,
+            {
+                "body_id": record_id,
+                "target_id": target_id,
+                "status_body_record_id": status_body_record_id,
+                "pre_admissibility_vector_id": pre_admissibility_vector_id,
+                "support_coordinates": tuple(support_coordinates),
+                "read_coordinates": tuple(read_coordinates),
+                "respect_coordinates": tuple(respect_coordinates),
+                "checker_version_id": checker_version_id,
+                "rule_version_id": rule_version_id,
+                "reads_final_output": reads_final_output,
+                "reason": reason,
+            },
+            id=record_id,
+            source=self.agent_id,
+            support_refs=tuple(support_refs),
+            metadata={"target_id": target_id},
+        )
+        self._ledger = self._ledger.add_record(record)
+        self._set_validation_coordinate(record, PhaseLevel.ADMISSIBILITY_BODY, target_id=target_id)
+        for source_id in support_refs:
+            self._ledger = self._ledger.add_support_edge(
+                SupportEdge(
+                    source_id=source_id,
+                    target_id=record.id,
+                    role=SupportRole.ADMISSIBILITY_BODY,
+                    reason=reason,
+                    witness_id=source_id,
+                )
+            )
+        return record
+
+    def add_checked_admissibility(
+        self,
+        *,
+        body_record_id: str,
+        pre_admissibility_vector_id: str,
+        admissibility: str = "admissible",
+        admissibility_id: str | None = None,
+        read_coordinates: list[str] | tuple[str, ...] = (),
+        respect_coordinates: list[str] | tuple[str, ...] = (),
+        support_refs: list[str] | tuple[str, ...] = (),
+        checker_version_id: str = "checker-v1",
+        rule_version_id: str = "rules-v1",
+        checked: bool = True,
+        reads_final_output: bool = False,
+        reason: str = "",
+    ) -> LedgerRecord:
+        record_id = admissibility_id or new_id("checked_admissibility")
+        refs = tuple(dict.fromkeys((body_record_id, pre_admissibility_vector_id, *support_refs)))
+        record = LedgerRecord.create(
+            RecordType.CHECKED_ADMISSIBILITY,
+            LedgerStage.CHECKED_ADMISSIBILITY,
+            {
+                "admissibility_id": record_id,
+                "body_record_id": body_record_id,
+                "admissibility": admissibility,
+                "checker_version_id": checker_version_id,
+                "pre_admissibility_vector_id": pre_admissibility_vector_id,
+                "rule_version_id": rule_version_id,
+                "read_coordinates": tuple(read_coordinates),
+                "respect_coordinates": tuple(respect_coordinates),
+                "checked": checked,
+                "reads_final_output": reads_final_output,
+                "reason": reason,
+            },
+            id=record_id,
+            source=self.agent_id,
+            support_refs=refs,
+        )
+        self._ledger = self._ledger.add_record(record).mark_checked(record.id)
+        self._set_validation_coordinate(record, PhaseLevel.CHECKED_ADMISSIBILITY)
+        for source_id, role in (
+            (body_record_id, SupportRole.ADMISSIBILITY_BODY),
+            (pre_admissibility_vector_id, SupportRole.ADMISSIBILITY_CHECK),
+        ):
+            self._ledger = self._ledger.add_support_edge(
+                SupportEdge(
+                    source_id=source_id,
+                    target_id=record.id,
+                    role=role,
+                    reason=reason,
+                    witness_id=source_id,
+                )
+            )
+        return record
+
+    def finalize_checked(
+        self,
+        *,
+        checker_version_id: str = "checker-v1",
+        rule_version_id: str = "rules-v1",
+    ) -> EvaluatedLedger:
+        target = self._latest_target_record()
+        if target is None:
+            target = self.add_claim("No output claim was recorded before finalization.")
+        support_ids = tuple(record.id for record in self._ledger.find(RecordType.SUPPORT))
+        evidence_ids = tuple(record.id for record in self._ledger.find(RecordType.EVIDENCE))
+        for anchor_id in self._ledger.support_graph.anchors:
+            if not self._has_anchor_declaration(anchor_id):
+                self.add_anchor_declaration(
+                    anchor_id=anchor_id,
+                    anchor_kind=AnchorKind.DECLARED_SUPPORT,
+                    reason="Anchor made explicit for strict finality.",
+                )
+        root_debt = self._ensure_root_debt()
+        self.add_kernel_admission(
+            version_id=rule_version_id,
+            checker_version_id=checker_version_id,
+            basis_kind=KernelAdmissionBasisKind.ROOT,
+            root_debt_id=root_debt.id,
+            reason="Strict finality uses visible root-debt admission.",
+        )
+        self.add_kernel_admission(
+            version_id=checker_version_id,
+            checker_version_id=rule_version_id,
+            kind=KernelAdmissionKind.CHECKER,
+            basis_kind=KernelAdmissionBasisKind.PRIOR_KERNEL,
+            basis_id=root_debt.id,
+            reason="Checker version is admitted by a finite prior-kernel witness.",
+        )
+        contract = ModeContract.for_name(self.mode)
+        for component in contract.adequacy_rules:
+            if not self._has_adequacy_record(component):
+                self.add_adequacy_record(
+                    component=component,
+                    state=EvidenceState.PASS,
+                    disposition=EvidenceDisposition.ACCEPTED,
+                    input_record_ids=(target.id, *support_ids, *evidence_ids),
+                    checker_version_id=checker_version_id,
+                    rule_version_id=rule_version_id,
+                    reason="Persisted finite adequacy disposition for strict finality.",
+                )
+        status_body = self.add_status_body(
+            target_id=target.id,
+            support_coordinates=("support",),
+            read_coordinates=contract.required_read_coordinates,
+            respect_coordinates=contract.required_respect_coordinates,
+            support_refs=(*support_ids, *evidence_ids),
+            checker_version_id=checker_version_id,
+            rule_version_id=rule_version_id,
+            reason="Status body reads only pre-final finite coordinates.",
+        )
+        checked_status = self.add_checked_status(
+            body_record_id=status_body.id,
+            status="supported",
+            read_coordinates=contract.required_read_coordinates,
+            respect_coordinates=contract.required_respect_coordinates,
+            checker_version_id=checker_version_id,
+            rule_version_id=rule_version_id,
+            reason="Checked status over a separate status body.",
+        )
+        vector = self.add_pre_admissibility_support_vector(
+            target_id=target.id,
+            support_coordinates=("support",),
+            validator_coordinates=("payload", "support_graph", "stage"),
+            kernel_coordinates=(rule_version_id, checker_version_id),
+            certificate_coordinates=("certificates",),
+            environment_coordinates=contract.environment_token_selection_rules,
+            obligation_coordinates=("obligations",),
+            adequacy_coordinates=contract.adequacy_rules,
+            support_refs=(status_body.id,),
+            checker_version_id=checker_version_id,
+            rule_version_id=rule_version_id,
+            reason="Pre-admissibility support vector excludes final checked outputs.",
+        )
+        admissibility_body = self.add_admissibility_body(
+            target_id=target.id,
+            status_body_record_id=status_body.id,
+            pre_admissibility_vector_id=vector.id,
+            support_coordinates=("support",),
+            read_coordinates=contract.required_read_coordinates,
+            respect_coordinates=contract.required_respect_coordinates,
+            support_refs=(status_body.id,),
+            checker_version_id=checker_version_id,
+            rule_version_id=rule_version_id,
+            reason="Admissibility body is separate from checked status.",
+        )
+        checked_admissibility = self.add_checked_admissibility(
+            body_record_id=admissibility_body.id,
+            pre_admissibility_vector_id=vector.id,
+            admissibility="admissible",
+            read_coordinates=contract.required_read_coordinates,
+            respect_coordinates=contract.required_respect_coordinates,
+            checker_version_id=checker_version_id,
+            rule_version_id=rule_version_id,
+            reason="Checked admissibility over finite pre-admissibility coordinates.",
+        )
+        self._ledger = self._ledger.add_stage_build(
+            StageBuildRecord(
+                build_id=new_id("stage_build"),
+                input_stage=LedgerStage.CHECKED_POLICY,
+                output_stage=LedgerStage.CHECKED_STATUS,
+                phase_start=PhaseLevel.STATUS_BODY,
+                phase_end=PhaseLevel.CHECKED_STATUS,
+                rule_versions=(rule_version_id,),
+                checker_versions=(checker_version_id,),
+                input_frontier=(target.id, *support_ids, *evidence_ids),
+                emitted_records=(status_body.id, checked_status.id),
+                reads=(target.id, *support_ids, *evidence_ids),
+                reason="Strict finality status build.",
+            )
+        )
+        self._ledger = self._ledger.add_stage_build(
+            StageBuildRecord(
+                build_id=new_id("stage_build"),
+                input_stage=LedgerStage.CHECKED_STATUS,
+                output_stage=LedgerStage.CHECKED_ADMISSIBILITY,
+                phase_start=PhaseLevel.ADMISSIBILITY_BODY,
+                phase_end=PhaseLevel.CHECKED_ADMISSIBILITY,
+                rule_versions=(rule_version_id,),
+                checker_versions=(checker_version_id,),
+                input_frontier=(status_body.id, checked_status.id, vector.id),
+                emitted_records=(vector.id, admissibility_body.id, checked_admissibility.id),
+                reads=(status_body.id,),
+                reason="Strict finality admissibility build.",
+            )
+        )
+        metadata = dict(self._ledger.metadata)
+        metadata["kernel"] = {
+            "kernel_id": "ledger-kernel",
+            "validation_kernel_id": "validation-kernel",
+            "object_kernel_id": "object-kernel",
+        }
+        self._ledger = replace(self._ledger, metadata=to_plain(metadata))  # type: ignore[arg-type]
+        return self.finalize()
+
     def finalize(self) -> EvaluatedLedger:
         return self._ledger.freeze_through(LedgerStage.FINAL)
+
+    def _latest_target_record(self) -> LedgerRecord | None:
+        for record_type in (RecordType.CLAIM, RecordType.SUPPORT, RecordType.EVIDENCE):
+            record = self._ledger.latest(record_type)
+            if record is not None:
+                return record
+        return self._ledger.records[-1] if self._ledger.records else None
+
+    def _has_anchor_declaration(self, anchor_id: str) -> bool:
+        return any(
+            record.payload.get("anchor_id") == anchor_id
+            for record in self._ledger.find(RecordType.ANCHOR_DECLARATION)
+        )
+
+    def _has_adequacy_record(self, component: str) -> bool:
+        return any(
+            record.payload.get("component") == component
+            for record in self._ledger.find(RecordType.ADEQUACY_RECORD)
+        )
+
+    def _ensure_root_debt(self) -> LedgerRecord:
+        existing = self._ledger.latest(RecordType.ROOT_DEBT)
+        if existing is not None:
+            return existing
+        record = LedgerRecord.create(
+            RecordType.ROOT_DEBT,
+            LedgerStage.CHECKED_CORE,
+            {
+                "root_declaration_id": "strict-finality-root",
+                "text": "Strict finality retains visible root debt instead of hiding axioms.",
+                "visible": True,
+                "selected_as_obligation": False,
+            },
+            id=new_id("root_debt"),
+            source=self.agent_id,
+        )
+        self._ledger = self._ledger.add_record(record)
+        self.add_anchor_declaration(
+            anchor_id=record.id,
+            anchor_kind=AnchorKind.ROOT_DECLARATION,
+            root_debt_id=record.id,
+            reason="Visible root debt for strict finality kernel admission.",
+        )
+        return record
+
+    def _set_validation_coordinate(
+        self,
+        record: LedgerRecord,
+        phase: PhaseLevel,
+        *,
+        target_id: str = "null",
+    ) -> None:
+        self._ledger = replace(
+            self._ledger,
+            support_graph=self._ledger.support_graph.add_validation_coordinate(
+                record.id,
+                ValidationCoordinate(
+                    event_id=record.event_id,
+                    stage=record.stage,
+                    phase=phase,
+                    target_id=target_id,
+                ),
+            ),
+        )
 
     def _add_edges(
         self,

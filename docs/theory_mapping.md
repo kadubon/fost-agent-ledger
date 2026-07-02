@@ -1,6 +1,6 @@
 # Theory Mapping
 
-This document maps the manuscript concepts to the v1.0 implementation. The independent coverage registry is generated from the TeX source and records 184 theorem-like, definition-like, principle, remark, boundary, and example items. The appendix sections are tracked in the registry metadata and implemented as design-boundary documentation rather than theorem-prover primitives. The DOI is https://doi.org/10.5281/zenodo.20995846.
+This document maps the manuscript concepts to the v2.0 implementation. The independent coverage registry is generated from the TeX source and records 184 theorem-like, definition-like, principle, remark, boundary, and example items. The appendix sections are tracked in the registry metadata and implemented as design-boundary documentation rather than theorem-prover primitives. The DOI is https://doi.org/10.5281/zenodo.20995846.
 
 Coverage labels:
 
@@ -14,13 +14,13 @@ FOST complete implementation means every finite operational item is represented 
 
 ## Primary Implementation Anchors
 
-- `OperationalCut`, `EvaluatedLedger`, `LedgerRecord`: finite cut and canonical v1.0 JSON root.
+- `OperationalCut`, `EvaluatedLedger`, `LedgerRecord`: finite cut and canonical v2.0 JSON root.
 - `SupportGraph`, `ValidationCoordinate`, `EventOrder`, `ProvenanceEdge`: typed finite support, event order, and provenance.
 - `CertificateRegistry`, certificate payload records: target-indexed certificate use and state.
 - `Kernel`, `KernelAdmission`, `RootDebtRecord`: validation/object kernel separation and root-debt visibility.
-- `StatusBody`, `CheckedStatus`, `AdmissibilityBody`, `CheckedAdmissibility`, `PreAdmissibilitySupportVector`: finality separation.
+- `status_body`, `checked_status`, `pre_admissibility_support_vector`, `admissibility_body`, `checked_admissibility`, `anchor_declaration`, `adequacy_record`: strict finality separation and persisted finite evidence disposition.
 - `validate_ledger`, `validate_transition`, JSON Schema: deterministic finite validators returning `Problem` objects.
-- `process_class`, `distinction_basis`, `finite_presentation`, `presentation_map`, `finite_expression`, `requirement_policy`, `settledness_license`, `certificate_cover`, `obligation_discharge`, `compression_profile_class`, `compression_factorization`, `self_modification_witness`: v1.0 executable-theory completion records.
+- `process_class`, `distinction_basis`, `finite_presentation`, `presentation_map`, `finite_expression`, `requirement_policy`, `settledness_license`, `certificate_cover`, `obligation_discharge`, `compression_profile_class`, `compression_factorization`, `self_modification_witness`: v2.0 executable-theory completion records.
 
 ## Formal Coverage Matrix
 

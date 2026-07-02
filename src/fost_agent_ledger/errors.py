@@ -19,3 +19,7 @@ class MissingRecordError(FOSTLedgerError):
 
 class ValidationError(FOSTLedgerError):
     """Raised for validator misuse that should be surfaced to callers."""
+
+
+class UnknownModeError(FOSTLedgerError):
+    """Raised when a mode has no finite public contract and fallback was not requested."""

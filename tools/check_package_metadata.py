@@ -13,7 +13,7 @@ except ModuleNotFoundError:  # pragma: no cover - exercised on Python 3.10 CI
     import tomli as tomllib  # type: ignore[no-redef]
 
 EXPECTED_PROJECT = "fost-agent-ledger"
-EXPECTED_VERSION = "1.0.0"
+EXPECTED_VERSION = "2.0.0"
 EXPECTED_REPOSITORY = "https://github.com/kadubon/fost-agent-ledger"
 EXPECTED_DOI = "https://doi.org/10.5281/zenodo.20995846"
 
@@ -32,7 +32,7 @@ def check_project_metadata(project_root: Path) -> list[MetadataFinding]:
     if project.get("name") != EXPECTED_PROJECT:
         findings.append(MetadataFinding("metadata.name", "project name must be fost-agent-ledger"))
     if project.get("version") != EXPECTED_VERSION:
-        findings.append(MetadataFinding("metadata.version", "project version must be 1.0.0"))
+        findings.append(MetadataFinding("metadata.version", "project version must be 2.0.0"))
 
     urls = project.get("urls", {})
     serialized_urls = "\n".join(str(value) for value in urls.values())
@@ -59,7 +59,7 @@ def check_distribution_metadata(dist_path: Path) -> list[MetadataFinding]:
     current_artifacts = _current_artifacts(dist_path)
     findings: list[MetadataFinding] = []
     if not current_artifacts:
-        return [MetadataFinding("metadata.missing_dist", "no current 1.0.0 artifacts found")]
+        return [MetadataFinding("metadata.missing_dist", "no current 2.0.0 artifacts found")]
     for artifact in current_artifacts:
         metadata = _read_artifact_metadata(artifact)
         if metadata.get("Name") != EXPECTED_PROJECT:

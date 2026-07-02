@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "fost-agent-ledger"
-version = "1.0.0"
+version = "2.0.0"
 description = "Finite operational ledger toolkit for AI-agent support, omissions, obligations, certificates, environment assumptions, and transitions."
 readme = "README.md"
 requires-python = ">=3.10"

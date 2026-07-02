@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from .admissibility import validate_ledger
-from .enums import Admissibility, ProblemSeverity, RecordType
+from .enums import Admissibility, CoordinateKind, ProblemSeverity, RecordType
 from .ledger import EvaluatedLedger
 from .model import JsonDict, JsonModel, Problem, to_plain
 from .modes import ModeContract
@@ -15,6 +15,10 @@ from .modes import ModeContract
 class TransitionWitness(JsonModel):
     coordinate: str
     witness_record_id: str
+    coordinate_kind: CoordinateKind | None = None
+    before_hash: str | None = None
+    after_hash: str | None = None
+    checker_version_id: str = ""
     reason: str = ""
 
     @classmethod
@@ -22,6 +26,12 @@ class TransitionWitness(JsonModel):
         return cls(
             coordinate=str(data["coordinate"]),
             witness_record_id=str(data["witness_record_id"]),
+            coordinate_kind=(
+                CoordinateKind(data["coordinate_kind"]) if data.get("coordinate_kind") else None
+            ),
+            before_hash=data.get("before_hash"),
+            after_hash=data.get("after_hash"),
+            checker_version_id=str(data.get("checker_version_id", "")),
             reason=str(data.get("reason", "")),
         )
 

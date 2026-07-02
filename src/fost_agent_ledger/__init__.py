@@ -10,7 +10,8 @@ from .certificates import (
     CertificateUse,
     RequiredCertificate,
 )
-from .environment import EnvironmentToken
+from .environment import EnvironmentRequirement, EnvironmentToken
+from .errors import UnknownModeError
 from .finality import (
     AdmissibilityBody,
     CheckedAdmissibility,
@@ -32,7 +33,7 @@ from .support import SupportGraph
 from .theory import TheoryCoverageRow, coverage_summary, iter_theory_coverage, load_theory_registry
 from .transitions import LedgerTransition, TransitionWitness, diff_ledgers, validate_transition
 
-__version__ = "1.0.0"
+__version__ = "2.0.0"
 
 __all__ = [
     "PROBLEM_EXPLANATIONS",
@@ -44,6 +45,7 @@ __all__ = [
     "CertificateUse",
     "CheckedAdmissibility",
     "CheckedStatus",
+    "EnvironmentRequirement",
     "EnvironmentToken",
     "EvaluatedLedger",
     "EventOrder",
@@ -69,6 +71,7 @@ __all__ = [
     "SupportGraph",
     "TheoryCoverageRow",
     "TransitionWitness",
+    "UnknownModeError",
     "ValidationCoordinate",
     "ValidationResult",
     "__version__",

@@ -30,7 +30,7 @@ def test_v02_ledger_migrates_to_v10() -> None:
         "stage_builds": [],
     }
     ledger = EvaluatedLedger.from_dict(v02)
-    assert ledger.schema_version == "1.0"
+    assert ledger.schema_version == "2.0"
     assert ledger.metadata["migrated_from_schema_version"] == "0.2"
 
 
@@ -279,7 +279,7 @@ def test_cli_explain_and_init(capsys: pytest.CaptureFixture[str]) -> None:
 
     assert main(["init", "--mode", "draft", "--agent-id", "agent-x"]) == 0
     initialized = json.loads(capsys.readouterr().out)
-    assert initialized["schema_version"] == "1.0"
+    assert initialized["schema_version"] == "2.0"
     assert initialized["agent_id"] == "agent-x"
     assert {record["record_type"] for record in initialized["records"]} >= {
         "process_class",
