@@ -18,8 +18,11 @@ Use it when you want an agent, review pipeline, or evaluation script to answer p
 
 ## Install
 
+Published version 2.0.0 supports Python 3.10+. Installation uses the network;
+the following inspection commands print to stdout in the installed environment:
+
 ```bash
-pip install fost-agent-ledger
+python -m pip install fost-agent-ledger==2.0.0
 python -c "import fost_agent_ledger as f; print(f.__version__)"
 fost-ledger init --mode research_summary --agent-id agent-1
 ```
@@ -39,13 +42,25 @@ result = validate_ledger(builder.finalize(), mode=ModeContract.research_summary(
 print(result.summary)
 ```
 
-The output tells you whether the finite ledger is supported and admissible for the selected mode.
+This in-memory example performs ordinary mode validation of the supplied
+records. It does not independently verify that the claimed source check happened
+and does not construct the strict-finality records.
 For a publishable checked ledger, use `builder.finalize_checked()` and validate with
 `validate_ledger(ledger, require_finality=True)`. That stricter path requires separate finite
 records for the status body, checked status, pre-admissibility support vector, admissibility body,
 checked admissibility, adequacy dispositions, anchor declarations, and kernel context.
 
+A complete small checked-finality construction is preserved in
+[`test_finalize_checked_builds_strict_finality_path`](tests/test_v20_strict_finality.py);
+it uses draft mode and finite declared support, not independently established source truth.
+See the [JSON contract](docs/json_contract.md) for the schema 2.0 boundary.
+
 ## 3-Minute CLI Quickstart
+
+In a fresh directory, redirection creates `ledger.json`. `init` prints an
+scaffold finalized for ordinary validation; it does not supply checked-finality
+evidence. The strict command below is intentionally expected to report missing
+finality records and return nonzero until those inputs are supplied:
 
 ```bash
 fost-ledger init --mode research_summary --agent-id agent-1 > ledger.json
@@ -59,7 +74,7 @@ The CLI is useful in CI, evaluation jobs, and manual review because the output i
 Unknown modes fail closed by default. Use `--allow-unknown-mode-as-draft` only when you explicitly
 want draft fallback semantics.
 
-## Three Ways To Use It
+## Ways To Use It
 
 - Python API: use `LedgerBuilder` and `validate_ledger` inside an agent or evaluation pipeline.
 - CLI: run `fost-ledger init`, `fost-ledger validate`, `fost-ledger diff`, and `fost-ledger explain CODE`.
@@ -111,6 +126,10 @@ Most agent audit logs store a transcript or a score. `fost-agent-ledger` stores 
 - [JSON Contract](docs/json_contract.md): v2.0 schema and migration.
 - [Theory Mapping](docs/theory_mapping.md): manuscript-to-implementation coverage.
 - [Release And PyPI Publishing](docs/release.md): Trusted Publishing setup and release checks.
+
+For related research, use the [Collective Intelligence Research and OSS Index](https://kadubon.github.io/github.io/collective-intelligence-index.html)
+and its [evidence support](https://kadubon.github.io/github.io/collective-intelligence-index.html#problem-evidence-support) route.
+Record-shape validation, checked finality, and source truth remain distinct.
 
 ## License
 
